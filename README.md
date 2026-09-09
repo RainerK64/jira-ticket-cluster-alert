@@ -6,10 +6,30 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - Monitors Jira issues whose keys start with `IT-`
 - Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
-- Saves ticket and alert history locally in SQLite
+- Saves ticket and alert history locally
 - Shows a live status page so you can tell the app is running
 
 ## Setup
+### Option A (recommended on Windows): one-click bootstrap
+Run the PowerShell bootstrap script from a clean Windows PowerShell session:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
+```
+
+What it does:
+- Stops running Node.js processes that can lock `node_modules`
+- Clones a fresh copy into a new timestamped folder (does not delete your current folder)
+- Fails fast if `package.json` still contains `better-sqlite3` (outdated commit / stale remote)
+- Runs `npm install`, prompts for Jira settings, writes `.env`, then starts `npm run dev`
+
+If you intentionally want to continue with an old clone, run with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 -SkipDependencyCheck
+```
+
+### Option B: manual setup
 1. Install Node.js LTS: https://nodejs.org/
 2. Clone the repo:
    ```bash
