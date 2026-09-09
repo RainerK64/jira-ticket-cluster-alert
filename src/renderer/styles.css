@@ -1,0 +1,43 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
+  color: #172b4d;
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(9, 30, 66, 0.08);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 8px 16px;
+}
+
+.cluster-card,
+.alert-card {
+  border: 1px solid #dfe1e6;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.muted {
+  color: #5e6c84;
+}
+
+.error-text {
+  color: #c9372c;
+  min-height: 20px;
+}
