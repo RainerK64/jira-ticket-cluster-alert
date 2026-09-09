@@ -110,6 +110,20 @@ function Read-SecretValue {
     }
 }
 
+function Get-DefaultValue {
+    param(
+        [hashtable]$Values,
+        [string]$Key,
+        [string]$Fallback = ''
+    )
+
+    if ($Values.ContainsKey($Key) -and -not [string]::IsNullOrWhiteSpace($Values[$Key])) {
+        return [string]$Values[$Key]
+    }
+
+    return $Fallback
+}
+
 function Get-EnvDefaults {
     param([string]$EnvExamplePath)
 
@@ -161,6 +175,9 @@ if ($nodeProcesses) {
 
 Write-Step "Cloning a fresh copy into $targetPath"
 git clone --depth 1 --branch $Branch $RepositoryUrl $targetPath
+if ($LASTEXITCODE -ne 0) {
+    Fail-Script 'git clone failed.'
+}
 Write-Ok 'Clone completed.'
 
 $packageJsonPath = Join-Path $targetPath 'package.json'
@@ -175,32 +192,6 @@ if ($packageJsonRaw -match '"better-sqlite3"\s*:') {
 
 Write-Ok 'Verified that package.json no longer references better-sqlite3.'
 
-$envExamplePath = Join-Path $targetPath '.env.example'
-$defaults = Get-EnvDefaults -EnvExamplePath $envExamplePath
-
-Write-Step 'Collecting Jira settings'
-$jiraBaseUrl = Read-RequiredValue -Prompt 'Jira base URL' -Default ($defaults['JIRA_BASE_URL'] ?? '')
-$jiraEmail = Read-RequiredValue -Prompt 'Jira email' -Default ($defaults['JIRA_EMAIL'] ?? '')
-$jiraApiToken = Read-SecretValue -Prompt 'Jira API token'
-$jiraProjectKey = Read-OptionalValue -Prompt 'Jira project key' -Default ($defaults['JIRA_PROJECT_KEY'] ?? 'IT')
-$pollIntervalSeconds = Read-OptionalValue -Prompt 'Poll interval in seconds' -Default ($defaults['POLL_INTERVAL_SECONDS'] ?? '60')
-$similarityThreshold = Read-OptionalValue -Prompt 'Similarity threshold' -Default ($defaults['SIMILARITY_THRESHOLD'] ?? '0.72')
-$alertWindowHours = Read-OptionalValue -Prompt 'Alert window in hours' -Default ($defaults['ALERT_WINDOW_HOURS'] ?? '24')
-$appStatusPort = Read-OptionalValue -Prompt 'Status page port' -Default ($defaults['APP_STATUS_PORT'] ?? '3333')
-
-$envPath = Join-Path $targetPath '.env'
-@"
-JIRA_BASE_URL=$($jiraBaseUrl.TrimEnd('/'))
-JIRA_EMAIL=$jiraEmail
-JIRA_API_TOKEN=$jiraApiToken
-JIRA_PROJECT_KEY=$jiraProjectKey
-POLL_INTERVAL_SECONDS=$pollIntervalSeconds
-SIMILARITY_THRESHOLD=$similarityThreshold
-ALERT_WINDOW_HOURS=$alertWindowHours
-APP_STATUS_PORT=$appStatusPort
-"@ | Set-Content -Path $envPath -Encoding utf8
-Write-Ok "Wrote .env to $envPath"
-
 Push-Location $targetPath
 try {
     Write-Step 'Installing npm dependencies'
@@ -210,6 +201,33 @@ try {
     }
 
     Write-Ok 'Dependencies installed.'
+
+    $envExamplePath = Join-Path $targetPath '.env.example'
+    $defaults = Get-EnvDefaults -EnvExamplePath $envExamplePath
+
+    Write-Step 'Collecting Jira settings'
+    $jiraBaseUrl = Read-RequiredValue -Prompt 'Jira base URL' -Default (Get-DefaultValue -Values $defaults -Key 'JIRA_BASE_URL')
+    $jiraEmail = Read-RequiredValue -Prompt 'Jira email' -Default (Get-DefaultValue -Values $defaults -Key 'JIRA_EMAIL')
+    $jiraApiToken = Read-SecretValue -Prompt 'Jira API token'
+    $jiraProjectKey = Read-OptionalValue -Prompt 'Jira project key' -Default (Get-DefaultValue -Values $defaults -Key 'JIRA_PROJECT_KEY' -Fallback 'IT')
+    $pollIntervalSeconds = Read-OptionalValue -Prompt 'Poll interval in seconds' -Default (Get-DefaultValue -Values $defaults -Key 'POLL_INTERVAL_SECONDS' -Fallback '60')
+    $similarityThreshold = Read-OptionalValue -Prompt 'Similarity threshold' -Default (Get-DefaultValue -Values $defaults -Key 'SIMILARITY_THRESHOLD' -Fallback '0.72')
+    $alertWindowHours = Read-OptionalValue -Prompt 'Alert window in hours' -Default (Get-DefaultValue -Values $defaults -Key 'ALERT_WINDOW_HOURS' -Fallback '24')
+    $appStatusPort = Read-OptionalValue -Prompt 'Status page port' -Default (Get-DefaultValue -Values $defaults -Key 'APP_STATUS_PORT' -Fallback '3333')
+
+    $envPath = Join-Path $targetPath '.env'
+    @"
+JIRA_BASE_URL=$($jiraBaseUrl.TrimEnd('/'))
+JIRA_EMAIL=$jiraEmail
+JIRA_API_TOKEN=$jiraApiToken
+JIRA_PROJECT_KEY=$jiraProjectKey
+POLL_INTERVAL_SECONDS=$pollIntervalSeconds
+SIMILARITY_THRESHOLD=$similarityThreshold
+ALERT_WINDOW_HOURS=$alertWindowHours
+APP_STATUS_PORT=$appStatusPort
+"@ | Set-Content -Path $envPath -Encoding utf8
+    Write-Ok "Wrote .env to $envPath"
+
     Write-Step 'Starting the app with npm run dev'
     Write-Host "Fresh clone path: $targetPath" -ForegroundColor Yellow
     Write-Host 'Keep this PowerShell window open while the app is running.' -ForegroundColor Yellow
