@@ -4,14 +4,14 @@ $repoUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git'
 $branch = 'copilot/create-powershell-bootstrap-script'
 $targetFolder = 'C:\temp\jira-ticket-cluster-alert'
 
-function Stop-WithMessage {
+function Fail {
     param([string]$Message)
     Write-Host ""
-    Write-Host $Message -ForegroundColor Red
+    Write-Host "ERROR: $Message" -ForegroundColor Red
     exit 1
 }
 
-function Ask-Required {
+function Ask {
     param(
         [string]$Prompt,
         [string]$Default = ''
@@ -29,47 +29,26 @@ function Ask-Required {
             return $value.Trim()
         }
 
-        Write-Host 'This value is required.' -ForegroundColor Yellow
+        Write-Host 'Please enter a value.' -ForegroundColor Yellow
     }
 }
 
-function Ask-Optional {
-    param(
-        [string]$Prompt,
-        [string]$Default
-    )
-
-    $value = Read-Host "$Prompt [$Default]"
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        return $Default
-    }
-
-    return $value.Trim()
-}
-
-Write-Host '============================================'
 Write-Host 'Jira Ticket Cluster Alert Setup'
-Write-Host '============================================'
-Write-Host "Repo:   $repoUrl"
-Write-Host "Branch: $branch"
-Write-Host "Folder: $targetFolder"
+Write-Host '-------------------------------'
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Stop-WithMessage "Git is not installed. Install Git first, then run this script again."
+    Fail 'Git is not installed.'
 }
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    Stop-WithMessage "Node.js and npm are not installed. Install Node.js LTS first, then run this script again."
+    Fail 'Node.js and npm are not installed. Please install Node.js LTS first.'
 }
 
-Write-Host ''
-Write-Host 'Stopping Node.js...'
+Write-Host 'Stopping old Node.js processes...'
 Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
 if (Test-Path $targetFolder) {
-    Write-Host ''
-    Write-Host "Folder already exists: $targetFolder" -ForegroundColor Yellow
-    $answer = Read-Host 'Delete it and download a fresh copy? (y/n)'
+    $answer = Read-Host "Delete existing folder '$targetFolder' and download a fresh copy? (y/n)"
     if ($answer -notin @('y', 'Y')) {
         Write-Host 'Cancelled.'
         exit
@@ -78,33 +57,31 @@ if (Test-Path $targetFolder) {
     Remove-Item $targetFolder -Recurse -Force
 }
 
-Write-Host ''
-Write-Host 'Cloning repository...'
+Write-Host "Downloading the fixed branch from GitHub..."
 git clone --branch $branch $repoUrl $targetFolder
 if ($LASTEXITCODE -ne 0) {
-    Stop-WithMessage "Clone failed. Make sure the branch '$branch' exists on GitHub and try again."
+    Fail "Could not clone branch '$branch' from GitHub."
 }
 
 Set-Location $targetFolder
 
-Write-Host 'Checking package.json...'
 $packageJson = Get-Content '.\package.json' -Raw
 if ($packageJson -match '"better-sqlite3"\s*:') {
-    Stop-WithMessage "This clone is still outdated because it contains better-sqlite3. The branch '$branch' on GitHub still needs to be updated."
+    Fail "The downloaded branch is still outdated because package.json still contains better-sqlite3."
 }
 
 Write-Host 'Installing dependencies...'
 npm install
 if ($LASTEXITCODE -ne 0) {
-    Stop-WithMessage 'npm install failed.'
+    Fail 'npm install failed.'
 }
 
 Write-Host ''
-Write-Host 'Enter your Jira settings:'
-$jiraBaseUrl = Ask-Required 'Jira Base URL (example: https://yourcompany.atlassian.net)'
-$jiraEmail = Ask-Required 'Jira Email'
-$jiraApiToken = Ask-Required 'Jira API Token'
-$jiraProjectKey = Ask-Optional 'Jira Project Key' 'IT'
+Write-Host 'Enter your Jira settings.'
+$jiraBaseUrl = Ask 'Jira Base URL (example: https://yourcompany.atlassian.net)'
+$jiraEmail = Ask 'Jira Email'
+$jiraApiToken = Ask 'Jira API Token'
+$jiraProjectKey = Ask 'Jira Project Key' 'IT'
 
 @"
 JIRA_BASE_URL=$($jiraBaseUrl.TrimEnd('/'))
@@ -118,5 +95,5 @@ APP_STATUS_PORT=3333
 "@ | Set-Content '.\.env'
 
 Write-Host ''
-Write-Host 'Starting app...'
+Write-Host 'Starting the app...'
 npm run dev

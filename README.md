@@ -10,14 +10,13 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - Shows a live status page so you can tell the app is running
 
 ## Setup
-### Windows one-click bootstrap
-1. Open Windows PowerShell.
-2. Run the simple setup script:
+### Windows quick start
+1. Save `run-jira-alert.ps1` somewhere on your PC, for example `C:\temp\run-jira-alert.ps1`.
+2. Run:
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\run-jira-alert.ps1
    ```
-3. The script will stop old Node.js processes, download the updated working branch, verify the clone no longer references `better-sqlite3`, install dependencies, prompt for your Jira settings, write `.env`, and start the app.
-4. If you need the more configurable version, use `.\bootstrap-windows.ps1`.
+3. The script will stop old Node.js processes, download the fixed branch, verify `better-sqlite3` is gone, install dependencies, ask for your Jira settings, write `.env`, and start the app.
 
 ### Manual setup
 1. Install Node.js LTS: https://nodejs.org/
@@ -38,8 +37,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 
 ## Local data
 - Runtime state is stored in `data/app-state.json`.
-- If the setup script says the cloned `package.json` still references `better-sqlite3`, the remote branch it downloaded is still outdated and should be updated before continuing.
-- `run-jira-alert.ps1` intentionally downloads the updated working branch directly so beginners do not accidentally clone a stale default branch.
+- If the setup script says the downloaded `package.json` still references `better-sqlite3`, the GitHub branch it downloaded is still outdated.
 
 ## How to tell it is running
 - You will see console messages like:
