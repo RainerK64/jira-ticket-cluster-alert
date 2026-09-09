@@ -16,7 +16,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
    ```powershell
    .\bootstrap-windows.ps1
    ```
-3. The script will stop old Node.js processes, clone a fresh copy into a new folder, verify the clone no longer references `better-sqlite3`, install dependencies, prompt for your Jira settings, write `.env`, and start the app.
+3. The script will stop old Node.js processes, clone a fresh copy into a new folder, default to the current repository branch when possible, verify the clone no longer references `better-sqlite3`, install dependencies, prompt for your Jira settings, write `.env`, and start the app.
 
 ### Manual setup
 1. Install Node.js LTS: https://nodejs.org/
@@ -37,7 +37,8 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 
 ## Local data
 - Runtime state is stored in `data/app-state.json`.
-- If the bootstrap script says the cloned `package.json` still references `better-sqlite3`, the remote repository or branch is still outdated and should be updated before continuing.
+- If the bootstrap script says the cloned `package.json` still references `better-sqlite3`, the specific remote branch it cloned is still outdated and should be updated before continuing.
+- If needed, you can force a different source with `.\bootstrap-windows.ps1 -Branch main -RepositoryUrl https://github.com/RainerK64/jira-ticket-cluster-alert.git`.
 
 ## How to tell it is running
 - You will see console messages like:

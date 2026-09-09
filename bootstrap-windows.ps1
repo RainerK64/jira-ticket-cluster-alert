@@ -1,11 +1,12 @@
 param(
-    [string]$RepositoryUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git',
-    [string]$Branch = 'main',
+    [string]$RepositoryUrl = '',
+    [string]$Branch = '',
     [string]$TargetParent = (Split-Path -Parent $PSScriptRoot)
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$DefaultRepositoryUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git'
 
 function Write-Step {
     param([string]$Message)
@@ -48,6 +49,83 @@ function Get-UniqueTargetPath {
     }
 
     return $candidate
+}
+
+function Get-GitOutput {
+    param(
+        [string]$WorkingDirectory,
+        [string[]]$Arguments
+    )
+
+    try {
+        $result = & git -C $WorkingDirectory @Arguments 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            return $null
+        }
+
+        return ($result | Out-String).Trim()
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-SourceRepositoryContext {
+    param([string]$WorkingDirectory)
+
+    $gitRoot = Get-GitOutput -WorkingDirectory $WorkingDirectory -Arguments @('rev-parse', '--show-toplevel')
+    if (-not $gitRoot) {
+        return @{
+            GitRoot = $null
+            Branch = $null
+            RemoteUrl = $null
+        }
+    }
+
+    $branchName = Get-GitOutput -WorkingDirectory $WorkingDirectory -Arguments @('branch', '--show-current')
+    if ($branchName -eq 'HEAD') {
+        $branchName = $null
+    }
+
+    return @{
+        GitRoot = $gitRoot
+        Branch = $branchName
+        RemoteUrl = Get-GitOutput -WorkingDirectory $WorkingDirectory -Arguments @('remote', 'get-url', 'origin')
+    }
+}
+
+function Resolve-RepositoryUrl {
+    param(
+        [string]$RequestedUrl,
+        [string]$DetectedUrl
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedUrl)) {
+        return $RequestedUrl.Trim()
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($DetectedUrl) -and $DetectedUrl -notmatch '^(https?://localhost[:/]|file:|/|[A-Za-z]:\\)') {
+        return $DetectedUrl.Trim()
+    }
+
+    return $DefaultRepositoryUrl
+}
+
+function Resolve-BranchName {
+    param(
+        [string]$RequestedBranch,
+        [string]$DetectedBranch
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedBranch)) {
+        return $RequestedBranch.Trim()
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($DetectedBranch)) {
+        return $DetectedBranch.Trim()
+    }
+
+    return 'main'
 }
 
 function Read-RequiredValue {
@@ -152,6 +230,10 @@ Test-RequiredCommand git
 Test-RequiredCommand node
 Test-RequiredCommand npm
 
+$sourceContext = Get-SourceRepositoryContext -WorkingDirectory $PSScriptRoot
+$RepositoryUrl = Resolve-RepositoryUrl -RequestedUrl $RepositoryUrl -DetectedUrl $sourceContext.RemoteUrl
+$Branch = Resolve-BranchName -RequestedBranch $Branch -DetectedBranch $sourceContext.Branch
+
 $resolvedTargetParent = [System.IO.Path]::GetFullPath($TargetParent)
 if (-not (Test-Path $resolvedTargetParent)) {
     New-Item -ItemType Directory -Path $resolvedTargetParent | Out-Null
@@ -162,6 +244,14 @@ $targetPath = Get-UniqueTargetPath -ParentPath $resolvedTargetParent -BaseName '
 
 if ($targetPath -eq $scriptDirectory) {
     Fail-Script 'Refusing to reuse the current repository folder. Please choose a different target parent path.'
+}
+
+Write-Ok "Using repository '$RepositoryUrl'"
+Write-Ok "Using branch '$Branch'"
+
+$remoteBranchCheck = & git ls-remote --exit-code --heads $RepositoryUrl $Branch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Fail-Script "Branch '$Branch' was not found on '$RepositoryUrl'. Push or update that branch first, or run the script with -Branch and -RepositoryUrl for a branch that already exists remotely."
 }
 
 Write-Step 'Stopping running Node.js processes that may lock an older clone'
@@ -187,7 +277,7 @@ if (-not (Test-Path $packageJsonPath)) {
 
 $packageJsonRaw = Get-Content -Path $packageJsonPath -Raw
 if ($packageJsonRaw -match '"better-sqlite3"\s*:') {
-    Fail-Script 'The freshly cloned package.json still references better-sqlite3. This clone is outdated, so npm install was not started. Please update the remote repository or branch and run the script again.'
+    Fail-Script "The freshly cloned branch '$Branch' from '$RepositoryUrl' still references better-sqlite3. npm install was not started. This usually means that branch is stale or the remote has not been updated yet."
 }
 
 Write-Ok 'Verified that package.json no longer references better-sqlite3.'
