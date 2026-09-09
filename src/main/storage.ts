@@ -43,27 +43,24 @@ db.exec(`
   );
 `);
 
-const defaultStatus: AppStatus = {
-  running: true,
-  startedAt: new Date().toISOString(),
-  lastPollAt: null,
-  lastSuccessAt: null,
-  lastError: null,
-  nextPollAt: null,
-  ticketsSeen: 0,
-  alertsSent: 0
-};
-
-const existingStatus = db.prepare('SELECT * FROM app_status WHERE id = 1').get() as AppStatus | undefined;
-if (!existingStatus) {
-  db.prepare(`
-    INSERT INTO app_status (id, running, startedAt, lastPollAt, lastSuccessAt, lastError, nextPollAt, ticketsSeen, alertsSent)
-    VALUES (1, @running, @startedAt, @lastPollAt, @lastSuccessAt, @lastError, @nextPollAt, @ticketsSeen, @alertsSent)
-  `).run(defaultStatus);
+function ensureStatusRow(): void {
+  const existing = db.prepare('SELECT 1 FROM app_status WHERE id = 1').get();
+  if (!existing) {
+    const startedAt = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO app_status (id, running, startedAt, lastPollAt, lastSuccessAt, lastError, nextPollAt, ticketsSeen, alertsSent)
+      VALUES (1, 1, ?, NULL, NULL, NULL, NULL, 0, 0)
+    `).run(startedAt);
+  }
 }
 
+ensureStatusRow();
+
 export function getStoredIssues(): StoredIssue[] {
-  return db.prepare(`SELECT * FROM issues ORDER BY created DESC`).all() as StoredIssue[];
+  return db.prepare(`SELECT * FROM issues ORDER BY created DESC`).all().map((row: any) => ({
+    ...row,
+    summaryTokens: JSON.parse(row.summaryTokens)
+  })) as StoredIssue[];
 }
 
 export function saveIssue(issue: StoredIssue): void {

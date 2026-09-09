@@ -4,7 +4,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 
 ## What it does
 - Monitors Jira issues whose keys start with `IT-`
-- Clusters similar summaries using fuzzy + word-overlap matching
+- Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
 - Saves ticket and alert history locally in SQLite
 - Shows a live status page so you can tell the app is running
@@ -33,6 +33,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
   - `[running] last poll: ...`
 - Open the status page in your browser:
   - `http://localhost:3333`
+- If port 3333 is busy, the app will try 3334 and tell you in the console.
 - When it alerts, you will get a desktop notification.
 
 ## Security note

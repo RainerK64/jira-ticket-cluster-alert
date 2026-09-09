@@ -16,35 +16,46 @@ export class JiraClient {
     const jql = `project = ${projectKey} AND key ~ "IT-" AND updated >= "${sinceIso}" ORDER BY created DESC`;
     const url = `${this.baseUrl}/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,created,updated`;
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: this.authHeader,
-        Accept: 'application/json'
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Authorization: this.authHeader,
+          Accept: 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
       }
-    });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
+      const data = (await res.json()) as {
+        issues?: Array<{
+          key: string;
+          fields?: {
+            summary?: string;
+            created?: string;
+            updated?: string;
+          };
+        }>;
+      };
+
+      const issues = Array.isArray(data.issues) ? data.issues : [];
+      return issues
+        .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
+        .map((issue) => ({
+          key: issue.key,
+          summary: issue.fields!.summary!,
+          created: issue.fields!.created!,
+          updated: issue.fields!.updated!,
+          url: `${this.baseUrl}/browse/${issue.key}`
+        }));
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await res.json()) as {
-      issues: Array<{
-        key: string;
-        fields: {
-          summary: string;
-          created: string;
-          updated: string;
-        };
-      }>;
-    };
-
-    return data.issues.map((issue) => ({
-      key: issue.key,
-      summary: issue.fields.summary,
-      created: issue.fields.created,
-      updated: issue.fields.updated,
-      url: `${this.baseUrl}/browse/${issue.key}`
-    }));
   }
 }

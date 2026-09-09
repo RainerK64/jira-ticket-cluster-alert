@@ -13,7 +13,7 @@ export async function runWatcher(
   pollIntervalSeconds: number
 ): Promise<void> {
   const startedPoll = new Date().toISOString();
-  updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(pollIntervalSeconds / 60) });
+  updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(Math.ceil(pollIntervalSeconds / 60)) });
 
   const sinceIso = hoursAgoIso(alertWindowHours);
   const issues = await jira.searchRecentIssues(projectKey, sinceIso);
@@ -35,8 +35,8 @@ export async function runWatcher(
 
   const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => issue.created >= sinceIso);
   const groups = buildClusters(allIssues, similarityThreshold);
-
   let alertsSent = 0;
+
   for (const group of groups) {
     const alert = createAlertFromGroup(group);
     const existingAlert = getAlertById(alert.id);
@@ -48,11 +48,10 @@ export async function runWatcher(
     }
   }
 
-  const nextPollAt = new Date(Date.now() + pollIntervalSeconds * 1000).toISOString();
   updateStatus({
     lastSuccessAt: new Date().toISOString(),
     lastError: null,
-    nextPollAt,
+    nextPollAt: new Date(Date.now() + pollIntervalSeconds * 1000).toISOString(),
     ticketsSeen: getStatus().ticketsSeen + newIssues,
     alertsSent: getStatus().alertsSent + alertsSent
   });

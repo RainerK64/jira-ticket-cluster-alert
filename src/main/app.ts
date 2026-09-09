@@ -6,8 +6,11 @@ import { getStatus, updateStatus } from './storage';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const status = getStatus();
-  updateStatus({ running: true, startedAt: status.startedAt || new Date().toISOString() });
+  const initialStatus = getStatus();
+  updateStatus({ running: true, startedAt: initialStatus.startedAt || new Date().toISOString() });
+
+  const jira = new JiraClient(config.jiraBaseUrl, config.jiraEmail, config.jiraApiToken);
+  let serverStarted = false;
 
   const server = http.createServer((req, res) => {
     if (!req.url) {
@@ -38,6 +41,7 @@ async function main(): Promise<void> {
               <p>Started at: <code>${current.startedAt}</code></p>
               <p>Last poll: <code>${current.lastPollAt ?? 'n/a'}</code></p>
               <p>Last success: <code>${current.lastSuccessAt ?? 'n/a'}</code></p>
+              <p>Last error: <code>${current.lastError ?? 'none'}</code></p>
               <p>Next poll: <code>${current.nextPollAt ?? 'n/a'}</code></p>
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
@@ -53,13 +57,39 @@ async function main(): Promise<void> {
     res.end('Not Found');
   });
 
-  server.listen(config.appStatusPort, () => {
-    console.log(`Status page: http://localhost:${config.appStatusPort}`);
-    console.log('Jira Ticket Cluster Alert started.');
-    console.log(`Polling every ${config.pollIntervalSeconds} seconds...`);
+  server.on('error', (err) => {
+    console.error(`Status server error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
   });
 
-  const jira = new JiraClient(config.jiraBaseUrl, config.jiraEmail, config.jiraApiToken);
+  const tryListen = (port: number): Promise<number> => new Promise((resolve) => {
+    const onError = (err: any) => {
+      server.off('error', onError);
+      if (err && err.code === 'EADDRINUSE') {
+        resolve(0);
+      } else {
+        throw err;
+      }
+    };
+
+    server.once('error', onError);
+    server.listen(port, () => {
+      server.off('error', onError);
+      resolve(port);
+    });
+  });
+
+  const startedPort = await tryListen(config.appStatusPort);
+  if (!startedPort) {
+    const fallbackPort = config.appStatusPort + 1;
+    await tryListen(fallbackPort);
+    console.log(`Port ${config.appStatusPort} was busy, using ${fallbackPort} instead.`);
+  }
+  serverStarted = true;
+
+  console.log(`Status page: http://localhost:${startedPort || config.appStatusPort + 1}`);
+  console.log('Jira Ticket Cluster Alert started.');
+  console.log(`Polling every ${config.pollIntervalSeconds} seconds...`);
 
   const tick = async () => {
     try {
@@ -72,7 +102,13 @@ async function main(): Promise<void> {
   };
 
   await tick();
-  setInterval(tick, config.pollIntervalSeconds * 1000);
+  setInterval(tick, config.pollIntervalSeconds * 1000).unref();
+
+  process.on('SIGINT', () => {
+    updateStatus({ running: false, lastError: 'Stopped by user' });
+    if (serverStarted) server.close();
+    process.exit(0);
+  });
 }
 
 main().catch((error) => {
