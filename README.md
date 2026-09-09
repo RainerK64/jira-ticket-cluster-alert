@@ -12,11 +12,12 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 ## Setup
 ### Windows one-click bootstrap
 1. Open Windows PowerShell.
-2. Run the bootstrap script from a copy of this repository:
+2. Run the simple setup script:
    ```powershell
-   .\bootstrap-windows.ps1
+   powershell -ExecutionPolicy Bypass -File .\run-jira-alert.ps1
    ```
-3. The script will stop old Node.js processes, clone a fresh copy into a new folder, default to the current repository branch when possible, verify the clone no longer references `better-sqlite3`, install dependencies, prompt for your Jira settings, write `.env`, and start the app.
+3. The script will stop old Node.js processes, download the updated working branch, verify the clone no longer references `better-sqlite3`, install dependencies, prompt for your Jira settings, write `.env`, and start the app.
+4. If you need the more configurable version, use `.\bootstrap-windows.ps1`.
 
 ### Manual setup
 1. Install Node.js LTS: https://nodejs.org/
@@ -37,8 +38,8 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 
 ## Local data
 - Runtime state is stored in `data/app-state.json`.
-- If the bootstrap script says the cloned `package.json` still references `better-sqlite3`, the specific remote branch it cloned is still outdated and should be updated before continuing.
-- If needed, you can force a different source with `.\bootstrap-windows.ps1 -Branch main -RepositoryUrl https://github.com/RainerK64/jira-ticket-cluster-alert.git`.
+- If the setup script says the cloned `package.json` still references `better-sqlite3`, the remote branch it downloaded is still outdated and should be updated before continuing.
+- `run-jira-alert.ps1` intentionally downloads the updated working branch directly so beginners do not accidentally clone a stale default branch.
 
 ## How to tell it is running
 - You will see console messages like:
