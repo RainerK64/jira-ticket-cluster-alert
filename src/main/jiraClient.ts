@@ -43,12 +43,12 @@ export class JiraClient {
   }
 
   async fetchRelevantIssues(): Promise<JiraIssue[]> {
-    const jql = [
+    const filters = [
       `project = "${this.config.jira.projectKey}"`,
       `created >= -${this.config.alerting.windowHours}h`,
       "summary is not EMPTY",
-      "ORDER BY created DESC",
-    ].join(" AND ");
+    ];
+    const jql = `${filters.join(" AND ")} ORDER BY created DESC`;
 
     const payload = {
       jql,
