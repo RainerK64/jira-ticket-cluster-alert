@@ -6,7 +6,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - Monitors Jira issues whose keys start with `IT-`
 - Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
-- Saves ticket and alert history locally in SQLite
+- Saves ticket, alert, and app status history locally in `data/app-state.json`
 - Shows a live status page so you can tell the app is running
 
 ## Setup
@@ -20,11 +20,16 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
    ```bash
    npm install
    ```
+   This app now uses a plain JSON state file, so no native SQLite build tools are required.
 4. Copy `.env.example` to `.env` and fill in your Jira details.
 5. Run the app:
    ```bash
    npm run dev
    ```
+
+## Local data storage
+- The app creates `data/app-state.json` automatically on startup if it is missing.
+- You can delete that file to reset local state; it will be recreated on the next run.
 
 ## How to tell it is running
 - You will see console messages like:

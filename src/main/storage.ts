@@ -1,133 +1,188 @@
-import Database from 'better-sqlite3';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 import { AlertCluster, AppStatus, StoredIssue } from '../shared/types';
 
 const dataDir = path.join(process.cwd(), 'data');
-const dbPath = path.join(dataDir, 'app.db');
-fs.mkdirSync(dataDir, { recursive: true });
-const db = new Database(dbPath);
+const statePath = path.join(dataDir, 'app-state.json');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS issues (
-    key TEXT PRIMARY KEY,
-    summary TEXT NOT NULL,
-    summaryNormalized TEXT NOT NULL,
-    summaryTokens TEXT NOT NULL,
-    created TEXT NOT NULL,
-    updated TEXT NOT NULL,
-    url TEXT NOT NULL
-  );
+type StorageState = {
+  issues: Record<string, StoredIssue>;
+  alerts: Record<string, AlertCluster>;
+  status: AppStatus;
+};
 
-  CREATE TABLE IF NOT EXISTS alerts (
-    id TEXT PRIMARY KEY,
-    signature TEXT NOT NULL,
-    count INTEGER NOT NULL,
-    score REAL NOT NULL,
-    issueKeys TEXT NOT NULL,
-    summaries TEXT NOT NULL,
-    firstSeenAt TEXT NOT NULL,
-    lastSeenAt TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS app_status (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    running INTEGER NOT NULL,
-    startedAt TEXT NOT NULL,
-    lastPollAt TEXT,
-    lastSuccessAt TEXT,
-    lastError TEXT,
-    nextPollAt TEXT,
-    ticketsSeen INTEGER NOT NULL,
-    alertsSent INTEGER NOT NULL
-  );
-`);
-
-function ensureStatusRow(): void {
-  const existing = db.prepare('SELECT 1 FROM app_status WHERE id = 1').get();
-  if (!existing) {
-    const startedAt = new Date().toISOString();
-    db.prepare(`
-      INSERT INTO app_status (id, running, startedAt, lastPollAt, lastSuccessAt, lastError, nextPollAt, ticketsSeen, alertsSent)
-      VALUES (1, 1, ?, NULL, NULL, NULL, NULL, 0, 0)
-    `).run(startedAt);
-  }
+function ensureDataDir(): void {
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
-ensureStatusRow();
-
-export function getStoredIssues(): StoredIssue[] {
-  return db.prepare(`SELECT * FROM issues ORDER BY created DESC`).all().map((row: any) => ({
-    ...row,
-    summaryTokens: JSON.parse(row.summaryTokens)
-  })) as StoredIssue[];
-}
-
-export function saveIssue(issue: StoredIssue): void {
-  db.prepare(`
-    INSERT INTO issues (key, summary, summaryNormalized, summaryTokens, created, updated, url)
-    VALUES (@key, @summary, @summaryNormalized, @summaryTokens, @created, @updated, @url)
-    ON CONFLICT(key) DO UPDATE SET
-      summary=excluded.summary,
-      summaryNormalized=excluded.summaryNormalized,
-      summaryTokens=excluded.summaryTokens,
-      created=excluded.created,
-      updated=excluded.updated,
-      url=excluded.url
-  `).run({ ...issue, summaryTokens: JSON.stringify(issue.summaryTokens) });
-}
-
-export function saveAlert(alert: AlertCluster): void {
-  db.prepare(`
-    INSERT INTO alerts (id, signature, count, score, issueKeys, summaries, firstSeenAt, lastSeenAt)
-    VALUES (@id, @signature, @count, @score, @issueKeys, @summaries, @firstSeenAt, @lastSeenAt)
-    ON CONFLICT(id) DO UPDATE SET
-      signature=excluded.signature,
-      count=excluded.count,
-      score=excluded.score,
-      issueKeys=excluded.issueKeys,
-      summaries=excluded.summaries,
-      firstSeenAt=excluded.firstSeenAt,
-      lastSeenAt=excluded.lastSeenAt
-  `).run({
-    ...alert,
-    issueKeys: JSON.stringify(alert.issueKeys),
-    summaries: JSON.stringify(alert.summaries)
-  });
-}
-
-export function getAlertById(id: string): AlertCluster | undefined {
-  const row = db.prepare(`SELECT * FROM alerts WHERE id = ?`).get(id) as any;
-  if (!row) return undefined;
+function defaultStatus(): AppStatus {
   return {
-    id: row.id,
-    signature: row.signature,
-    count: row.count,
-    score: Number(row.score),
-    issueKeys: JSON.parse(row.issueKeys),
-    summaries: JSON.parse(row.summaries),
-    firstSeenAt: row.firstSeenAt,
-    lastSeenAt: row.lastSeenAt
+    running: false,
+    startedAt: new Date().toISOString(),
+    lastPollAt: null,
+    lastSuccessAt: null,
+    lastError: null,
+    nextPollAt: null,
+    ticketsSeen: 0,
+    alertsSent: 0
   };
 }
 
+function defaultState(): StorageState {
+  return {
+    issues: {},
+    alerts: {},
+    status: defaultStatus()
+  };
+}
+
+function normalizeIssue(issue: Partial<StoredIssue> | undefined): StoredIssue | undefined {
+  if (
+    !issue?.key ||
+    !issue.summary ||
+    !issue.summaryNormalized ||
+    !Array.isArray(issue.summaryTokens) ||
+    !issue.created ||
+    !issue.updated ||
+    !issue.url
+  ) {
+    return undefined;
+  }
+
+  return {
+    key: issue.key,
+    summary: issue.summary,
+    summaryNormalized: issue.summaryNormalized,
+    summaryTokens: issue.summaryTokens.filter((token): token is string => typeof token === 'string'),
+    created: issue.created,
+    updated: issue.updated,
+    url: issue.url
+  };
+}
+
+function normalizeAlert(alert: Partial<AlertCluster> | undefined): AlertCluster | undefined {
+  if (
+    !alert?.id ||
+    !alert.signature ||
+    typeof alert.count !== 'number' ||
+    typeof alert.score !== 'number' ||
+    !Array.isArray(alert.issueKeys) ||
+    !Array.isArray(alert.summaries) ||
+    !alert.firstSeenAt ||
+    !alert.lastSeenAt
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: alert.id,
+    signature: alert.signature,
+    count: alert.count,
+    score: alert.score,
+    issueKeys: alert.issueKeys.filter((value): value is string => typeof value === 'string'),
+    summaries: alert.summaries.filter((value): value is string => typeof value === 'string'),
+    firstSeenAt: alert.firstSeenAt,
+    lastSeenAt: alert.lastSeenAt
+  };
+}
+
+function normalizeStatus(status: Partial<AppStatus> | undefined): AppStatus {
+  const fallback = defaultStatus();
+
+  return {
+    running: typeof status?.running === 'boolean' ? status.running : fallback.running,
+    startedAt: status?.startedAt || fallback.startedAt,
+    lastPollAt: status?.lastPollAt ?? null,
+    lastSuccessAt: status?.lastSuccessAt ?? null,
+    lastError: status?.lastError ?? null,
+    nextPollAt: status?.nextPollAt ?? null,
+    ticketsSeen: typeof status?.ticketsSeen === 'number' ? status.ticketsSeen : fallback.ticketsSeen,
+    alertsSent: typeof status?.alertsSent === 'number' ? status.alertsSent : fallback.alertsSent
+  };
+}
+
+function normalizeState(raw: unknown): StorageState {
+  const value = (raw && typeof raw === 'object') ? raw as Partial<StorageState> : {};
+  const issues = Object.values(value.issues ?? {}).reduce<Record<string, StoredIssue>>((result, issue) => {
+    const normalized = normalizeIssue(issue);
+    if (normalized) {
+      result[normalized.key] = normalized;
+    }
+    return result;
+  }, {});
+  const alerts = Object.values(value.alerts ?? {}).reduce<Record<string, AlertCluster>>((result, alert) => {
+    const normalized = normalizeAlert(alert);
+    if (normalized) {
+      result[normalized.id] = normalized;
+    }
+    return result;
+  }, {});
+
+  return {
+    issues,
+    alerts,
+    status: normalizeStatus(value.status)
+  };
+}
+
+function writeState(state: StorageState): void {
+  ensureDataDir();
+  const normalized = normalizeState(state);
+  const tempPath = `${statePath}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(normalized, null, 2), 'utf8');
+  fs.renameSync(tempPath, statePath);
+}
+
+function readState(): StorageState {
+  ensureDataDir();
+
+  if (!fs.existsSync(statePath)) {
+    const initialState = defaultState();
+    writeState(initialState);
+    return initialState;
+  }
+
+  try {
+    const raw = fs.readFileSync(statePath, 'utf8');
+    const parsed = raw.trim() ? JSON.parse(raw) : {};
+    const state = normalizeState(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(state)) {
+      writeState(state);
+    }
+    return state;
+  } catch {
+    const fallbackState = defaultState();
+    writeState(fallbackState);
+    return fallbackState;
+  }
+}
+
+export function getStoredIssues(): StoredIssue[] {
+  return Object.values(readState().issues).sort((a, b) => b.created.localeCompare(a.created));
+}
+
+export function saveIssue(issue: StoredIssue): void {
+  const state = readState();
+  state.issues[issue.key] = issue;
+  writeState(state);
+}
+
+export function saveAlert(alert: AlertCluster): void {
+  const state = readState();
+  state.alerts[alert.id] = alert;
+  writeState(state);
+}
+
+export function getAlertById(id: string): AlertCluster | undefined {
+  return readState().alerts[id];
+}
+
 export function getStatus(): AppStatus {
-  return db.prepare(`SELECT * FROM app_status WHERE id = 1`).get() as AppStatus;
+  return readState().status;
 }
 
 export function updateStatus(patch: Partial<AppStatus>): void {
-  const current = getStatus();
-  const next = { ...current, ...patch };
-  db.prepare(`
-    UPDATE app_status SET
-      running = @running,
-      startedAt = @startedAt,
-      lastPollAt = @lastPollAt,
-      lastSuccessAt = @lastSuccessAt,
-      lastError = @lastError,
-      nextPollAt = @nextPollAt,
-      ticketsSeen = @ticketsSeen,
-      alertsSent = @alertsSent
-    WHERE id = 1
-  `).run(next);
+  const state = readState();
+  state.status = normalizeStatus({ ...state.status, ...patch });
+  writeState(state);
 }
