@@ -1,11 +1,24 @@
 {
   "name": "jira-ticket-cluster-alert",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Standalone Jira ticket monitor with similarity alerts",
+  "description": "Standalone Jira ticket monitor with similarity alerts and a desktop popup",
   "main": "dist/main/app.js",
   "scripts": {
-    "dev": "echo \"Starter project created. Next step: add app source files.\"",
-    "build": "echo \"Build step not yet implemented.\""
+    "dev": "tsx watch src/main/app.ts",
+    "build": "tsc",
+    "start": "node dist/main/app.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.4.0",
+    "dotenv": "^16.4.5",
+    "fuse.js": "^7.0.0",
+    "node-notifier": "^10.0.1",
+    "wordfreq": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

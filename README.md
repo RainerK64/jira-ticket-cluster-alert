@@ -1,53 +1,39 @@
 # Jira Ticket Cluster Alert
 
-A beginner-friendly standalone desktop app that watches incoming Jira tickets and alerts when 3 or more tickets have very similar summaries.
+A beginner-friendly standalone desktop-style app that watches Jira tickets and alerts when 3 or more similar summaries appear.
 
-## What this app does
-- Monitors Jira for issues whose keys start with `IT-`
-- Detects when 3 or more tickets have similar summaries
-- Sends a local desktop popup alert
-- Stores seen tickets and alert history locally
-- Keeps Jira API settings in one place so updates are easy later
+## What it does
+- Monitors Jira issues whose keys start with `IT-`
+- Clusters similar summaries using fuzzy + word-overlap matching
+- Sends a popup notification when a 3+ ticket cluster appears
+- Saves ticket and alert history locally in SQLite
+- Shows a live status page so you can tell the app is running
 
-## Easy setup
+## Setup
+1. Install Node.js LTS: https://nodejs.org/
+2. Clone the repo:
+   ```bash
+   git clone https://github.com/RainerK64/jira-ticket-cluster-alert.git
+   cd jira-ticket-cluster-alert
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Copy `.env.example` to `.env` and fill in your Jira details.
+5. Run the app:
+   ```bash
+   npm run dev
+   ```
 
-### 1) Install Node.js
-Install the latest LTS version of Node.js from:
-https://nodejs.org/
+## How to tell it is running
+- You will see console messages like:
+  - `Jira Ticket Cluster Alert started.`
+  - `Polling every 60 seconds...`
+  - `[running] last poll: ...`
+- Open the status page in your browser:
+  - `http://localhost:3333`
+- When it alerts, you will get a desktop notification.
 
-### 2) Clone the repository
-```bash
-git clone https://github.com/RainerK64/jira-ticket-cluster-alert.git
-cd jira-ticket-cluster-alert
-```
-
-### 3) Install dependencies
-```bash
-npm install
-```
-
-### 4) Create your config file
-Copy `.env.example` to `.env` and fill in your Jira details.
-
-### 5) Run the app
-```bash
-npm run dev
-```
-
-## Jira settings you will need
-- Jira site URL
-- Jira email or username
-- Jira API token
-- Project key or filter settings
-
-## First version goal
-This starter will include:
-- Jira API client
-- polling watcher
-- summary similarity checker
-- alert popup
-- local storage
-- beginner README
-
-## Notes
-This repo is being set up to be easy for beginners to use and easy to maintain later.
+## Security note
+If you ever paste a real Jira API token into chat or share it, revoke it and create a new one.
