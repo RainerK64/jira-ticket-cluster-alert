@@ -3,7 +3,7 @@
 A beginner-friendly standalone desktop-style app that watches Jira tickets and alerts when 3 or more similar summaries appear.
 
 ## What it does
-- Monitors Jira issues whose keys start with `IT-`
+- Monitors recent Jira issues in the configured project
 - Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
 - Saves ticket and alert history locally in a JSON file
