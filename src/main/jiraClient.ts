@@ -33,40 +33,37 @@ export class JiraClient {
     const jql = `project = ${projectKey} AND key ~ "IT-" AND updated >= "${sinceIso}" ORDER BY created DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
+    let res = await this.search(primaryUrl, jql);
 
-    try {
-      let res = await this.search(primaryUrl, jql);
-
-      if (res.status === 404 || res.status === 405) {
-        res = await this.search(fallbackUrl, jql);
-      }
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
-      }
-
-      const data = (await res.json()) as {
-        issues?: Array<{
-          key: string;
-          fields?: {
-            summary?: string;
-            created?: string;
-            updated?: string;
-          };
-        }>;
-      };
-
-      const issues = Array.isArray(data.issues) ? data.issues : [];
-      return issues
-        .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
-        .map((issue) => ({
-          key: issue.key,
-          summary: issue.fields!.summary!,
-          created: issue.fields!.created!,
-          updated: issue.fields!.updated!,
-          url: `${this.baseUrl}/browse/${issue.key}`
-        }));
+    if (res.status === 404 || res.status === 405) {
+      res = await this.search(fallbackUrl, jql);
     }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
+    }
+
+    const data = (await res.json()) as {
+      issues?: Array<{
+        key: string;
+        fields?: {
+          summary?: string;
+          created?: string;
+          updated?: string;
+        };
+      }>;
+    };
+
+    const issues = Array.isArray(data.issues) ? data.issues : [];
+    return issues
+      .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
+      .map((issue) => ({
+        key: issue.key,
+        summary: issue.fields!.summary!,
+        created: issue.fields!.created!,
+        updated: issue.fields!.updated!,
+        url: `${this.baseUrl}/browse/${issue.key}`
+      }));
   }
 }
