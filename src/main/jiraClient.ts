@@ -12,21 +12,34 @@ export class JiraClient {
     return `Basic ${token}`;
   }
 
+  private async search(url: string, jql: string): Promise<Response> {
+    return fetch(url, {
+      method: 'POST',
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Authorization: this.authHeader,
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        jql,
+        maxResults: 50,
+        fields: ['summary', 'created', 'updated']
+      })
+    });
+  }
+
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
     const jql = `project = ${projectKey} AND key ~ "IT-" AND updated >= "${sinceIso}" ORDER BY created DESC`;
-    const url = `${this.baseUrl}/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,created,updated`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
+    const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
 
     try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          Authorization: this.authHeader,
-          Accept: 'application/json'
-        }
-      });
+      let res = await this.search(primaryUrl, jql);
+
+      if (res.status === 404 || res.status === 405) {
+        res = await this.search(fallbackUrl, jql);
+      }
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
@@ -54,8 +67,6 @@ export class JiraClient {
           updated: issue.fields!.updated!,
           url: `${this.baseUrl}/browse/${issue.key}`
         }));
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }
