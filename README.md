@@ -16,7 +16,8 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\run-jira-alert.ps1
    ```
-3. The script will stop old Node.js processes, download the fixed branch, verify `better-sqlite3` is gone, install dependencies, ask for your Jira settings, write `.env`, and start the app.
+3. A setup window will pop up and ask for your Jira URL, email, API token, project key, and install folder.
+4. The script will then stop old Node.js processes, download the fixed branch, verify `better-sqlite3` is gone, install dependencies, write `.env`, and start the app.
 
 ### Manual setup
 1. Install Node.js LTS: https://nodejs.org/

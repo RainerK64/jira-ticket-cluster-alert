@@ -1,63 +1,154 @@
 $ErrorActionPreference = 'Stop'
 
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
 $repoUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git'
 $branch = 'copilot/create-powershell-bootstrap-script'
 $targetFolder = 'C:\temp\jira-ticket-cluster-alert'
 
 function Fail {
     param([string]$Message)
-    Write-Host ""
-    Write-Host "ERROR: $Message" -ForegroundColor Red
-    exit 1
+    [System.Windows.Forms.MessageBox]::Show($Message, 'Jira Ticket Cluster Alert Setup', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
+    throw $Message
 }
 
-function Ask {
+function Show-Info {
+    param([string]$Message)
+    [System.Windows.Forms.MessageBox]::Show($Message, 'Jira Ticket Cluster Alert Setup', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+}
+
+function Confirm-Action {
+    param([string]$Message)
+
+    return [System.Windows.Forms.MessageBox]::Show($Message, 'Jira Ticket Cluster Alert Setup', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question) -eq [System.Windows.Forms.DialogResult]::Yes
+}
+
+function New-Field {
     param(
-        [string]$Prompt,
-        [string]$Default = ''
+        [System.Windows.Forms.Form]$Form,
+        [string]$LabelText,
+        [int]$Top,
+        [string]$DefaultValue = '',
+        [bool]$IsPassword = $false
     )
 
-    while ($true) {
-        $label = if ($Default) { "$Prompt [$Default]" } else { $Prompt }
-        $value = Read-Host $label
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = $LabelText
+    $label.Left = 20
+    $label.Top = $Top
+    $label.Width = 160
+    $Form.Controls.Add($label)
 
-        if ([string]::IsNullOrWhiteSpace($value)) {
-            $value = $Default
-        }
+    $textbox = New-Object System.Windows.Forms.TextBox
+    $textbox.Left = 190
+    $textbox.Top = $Top - 3
+    $textbox.Width = 270
+    $textbox.Text = $DefaultValue
+    if ($IsPassword) {
+        $textbox.UseSystemPasswordChar = $true
+    }
 
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            return $value.Trim()
-        }
+    $Form.Controls.Add($textbox)
+    return $textbox
+}
 
-        Write-Host 'Please enter a value.' -ForegroundColor Yellow
+function Show-SetupForm {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'Jira Ticket Cluster Alert Setup'
+    $form.StartPosition = 'CenterScreen'
+    $form.Size = New-Object System.Drawing.Size(500, 340)
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+
+    $intro = New-Object System.Windows.Forms.Label
+    $intro.Text = 'Enter your Jira settings. The script will then download, install, and start the app.'
+    $intro.Left = 20
+    $intro.Top = 15
+    $intro.Width = 440
+    $intro.Height = 35
+    $form.Controls.Add($intro)
+
+    $baseUrlBox = New-Field -Form $form -LabelText 'Jira Base URL' -Top 60 -DefaultValue 'https://your-domain.atlassian.net'
+    $emailBox = New-Field -Form $form -LabelText 'Jira Email' -Top 100
+    $tokenBox = New-Field -Form $form -LabelText 'Jira API Token' -Top 140 -IsPassword $true
+    $projectKeyBox = New-Field -Form $form -LabelText 'Jira Project Key' -Top 180 -DefaultValue 'IT'
+    $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 220 -DefaultValue $targetFolder
+
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = 'Start Setup'
+    $okButton.Left = 270
+    $okButton.Top = 260
+    $okButton.Width = 90
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $form.Controls.Add($okButton)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = 'Cancel'
+    $cancelButton.Left = 370
+    $cancelButton.Top = 260
+    $cancelButton.Width = 90
+    $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $form.Controls.Add($cancelButton)
+
+    $form.AcceptButton = $okButton
+    $form.CancelButton = $cancelButton
+
+    if ($form.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+        return $null
+    }
+
+    return @{
+        JiraBaseUrl = $baseUrlBox.Text.Trim()
+        JiraEmail = $emailBox.Text.Trim()
+        JiraApiToken = $tokenBox.Text
+        JiraProjectKey = $projectKeyBox.Text.Trim()
+        TargetFolder = $targetFolderBox.Text.Trim()
     }
 }
 
-Write-Host 'Jira Ticket Cluster Alert Setup'
-Write-Host '-------------------------------'
-
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Fail 'Git is not installed.'
+    Fail 'Git is not installed. Please install Git first.'
 }
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     Fail 'Node.js and npm are not installed. Please install Node.js LTS first.'
 }
 
-Write-Host 'Stopping old Node.js processes...'
-Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+$settings = Show-SetupForm
+if ($null -eq $settings) {
+    exit
+}
+
+if ([string]::IsNullOrWhiteSpace($settings.JiraBaseUrl) -or
+    [string]::IsNullOrWhiteSpace($settings.JiraEmail) -or
+    [string]::IsNullOrWhiteSpace($settings.JiraApiToken) -or
+    [string]::IsNullOrWhiteSpace($settings.JiraProjectKey) -or
+    [string]::IsNullOrWhiteSpace($settings.TargetFolder)) {
+    Fail 'Please fill in Jira Base URL, Jira Email, Jira API Token, Jira Project Key, and Install Folder.'
+}
+
+$targetFolder = $settings.TargetFolder
+$parentFolder = Split-Path -Parent $targetFolder
+if (-not (Test-Path $parentFolder)) {
+    New-Item -ItemType Directory -Path $parentFolder -Force | Out-Null
+}
 
 if (Test-Path $targetFolder) {
-    $answer = Read-Host "Delete existing folder '$targetFolder' and download a fresh copy? (y/n)"
-    if ($answer -notin @('y', 'Y')) {
-        Write-Host 'Cancelled.'
+    if (-not (Confirm-Action "Delete existing folder '$targetFolder' and download a fresh copy?")) {
         exit
     }
 
+    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Remove-Item $targetFolder -Recurse -Force
 }
+else {
+    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
 
-Write-Host "Downloading the fixed branch from GitHub..."
+Write-Host 'Downloading the fixed branch from GitHub...'
 git clone --branch $branch $repoUrl $targetFolder
 if ($LASTEXITCODE -ne 0) {
     Fail "Could not clone branch '$branch' from GitHub."
@@ -70,30 +161,23 @@ if ($packageJson -match '"better-sqlite3"\s*:') {
     Fail "The downloaded branch is still outdated because package.json still contains better-sqlite3."
 }
 
-Write-Host 'Installing dependencies...'
-npm install
-if ($LASTEXITCODE -ne 0) {
-    Fail 'npm install failed.'
-}
-
-Write-Host ''
-Write-Host 'Enter your Jira settings.'
-$jiraBaseUrl = Ask 'Jira Base URL (example: https://yourcompany.atlassian.net)'
-$jiraEmail = Ask 'Jira Email'
-$jiraApiToken = Ask 'Jira API Token'
-$jiraProjectKey = Ask 'Jira Project Key' 'IT'
-
 @"
-JIRA_BASE_URL=$($jiraBaseUrl.TrimEnd('/'))
-JIRA_EMAIL=$jiraEmail
-JIRA_API_TOKEN=$jiraApiToken
-JIRA_PROJECT_KEY=$jiraProjectKey
+JIRA_BASE_URL=$($settings.JiraBaseUrl.TrimEnd('/'))
+JIRA_EMAIL=$($settings.JiraEmail)
+JIRA_API_TOKEN=$($settings.JiraApiToken)
+JIRA_PROJECT_KEY=$($settings.JiraProjectKey)
 POLL_INTERVAL_SECONDS=60
 SIMILARITY_THRESHOLD=0.72
 ALERT_WINDOW_HOURS=24
 APP_STATUS_PORT=3333
 "@ | Set-Content '.\.env'
 
-Write-Host ''
+Write-Host 'Installing dependencies...'
+npm install
+if ($LASTEXITCODE -ne 0) {
+    Fail 'npm install failed.'
+}
+
+Show-Info "Setup finished. The app will now start from:`n$targetFolder"
 Write-Host 'Starting the app...'
 npm run dev
