@@ -81,19 +81,12 @@ function writeState(state: StorageState): void {
   fs.writeFileSync(tempFile, nextContent, 'utf8');
 
   try {
-    if (fs.existsSync(dataFile)) {
-      fs.rmSync(dataFile, { force: true });
-    }
     fs.renameSync(tempFile, dataFile);
   } catch (error) {
-    fs.writeFileSync(dataFile, nextContent, 'utf8');
     if (fs.existsSync(tempFile)) {
       fs.rmSync(tempFile, { force: true });
     }
-
-    if (!(error instanceof Error)) {
-      throw error;
-    }
+    throw error;
   }
   cachedStateMtimeMs = getDataFileMtimeMs();
 }
@@ -170,8 +163,9 @@ function updateState(mutator: (state: StorageState) => void): void {
       nextMutation?.(nextState);
     }
 
-    cachedState = normalizeState(nextState);
-    writeState(cachedState);
+    const normalizedState = normalizeState(nextState);
+    writeState(normalizedState);
+    cachedState = normalizedState;
   } finally {
     flushingMutations = false;
   }

@@ -32,11 +32,11 @@ export class JiraClient {
   private getRelativeUpdatedFilter(sinceIso: string): string {
     const sinceTime = new Date(sinceIso).getTime();
     if (!Number.isFinite(sinceTime)) {
-      return '-24h';
+      return '-1440m';
     }
 
-    const hoursAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 60 * 1000)));
-    return `-${hoursAgo}h`;
+    const minutesAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 1000)));
+    return `-${minutesAgo}m`;
   }
 
   private escapeJqlValue(value: string): string {
