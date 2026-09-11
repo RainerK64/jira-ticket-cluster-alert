@@ -17,6 +17,16 @@ export function combinedSimilarity(a: StoredIssue, b: StoredIssue): number {
   return Math.max(0, Math.min(1, (overlap * 0.25) + (coverage * 0.2) + (phraseSimilarity * 0.2) + (topicScore * 0.25) + (lenRatio * 0.05) + firstWordsMatch));
 }
 
+function isClusterMatch(a: StoredIssue, b: StoredIssue, threshold: number): boolean {
+  const tokensA = a.summaryTokens ?? tokenizeSummary(a.summary);
+  const tokensB = b.summaryTokens ?? tokenizeSummary(b.summary);
+  const similarity = combinedSimilarity(a, b);
+  const topicScore = commonTopicScore(tokensA, tokensB);
+  const relaxedThreshold = Math.max(0.45, threshold - 0.27);
+
+  return similarity >= threshold || (topicScore >= 0.35 && similarity >= relaxedThreshold);
+}
+
 type MatchGroup = {
   signature: string;
   issues: StoredIssue[];
@@ -45,7 +55,7 @@ export function buildClusters(issues: StoredIssue[], threshold: number): MatchGr
 
     for (let queueIndex = 0; queueIndex < clustered.length; queueIndex++) {
       for (let i = remaining.length - 1; i >= 0; i--) {
-        if (combinedSimilarity(clustered[queueIndex], remaining[i]) >= threshold) {
+        if (isClusterMatch(clustered[queueIndex], remaining[i], threshold)) {
           clustered.push(remaining[i]);
           remaining.splice(i, 1);
         }
