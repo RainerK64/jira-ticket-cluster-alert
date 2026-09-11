@@ -190,7 +190,7 @@ POLL_INTERVAL_SECONDS=60
 SIMILARITY_THRESHOLD=0.72
 ALERT_WINDOW_HOURS=24
 APP_STATUS_PORT=3333
-"@ | Set-Content '.\.env'
+"@ | Set-Content '.\.env' -Encoding UTF8
 
 Write-Host 'Installing dependencies...'
 npm install
