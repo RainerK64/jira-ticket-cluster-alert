@@ -52,10 +52,10 @@ export class JiraClient {
     return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  async searchRecentIssues(projectKey: string, createdSinceJql: string): Promise<JiraIssue[]> {
+  async searchRecentIssues(projectKey: string, updatedSinceJql: string): Promise<JiraIssue[]> {
     const escapedProjectKey = this.escapeJqlValue(projectKey);
-    const escapedCreatedSinceJql = this.escapeJqlValue(createdSinceJql);
-    const jql = `project = "${escapedProjectKey}" AND created >= "${escapedCreatedSinceJql}" ORDER BY created DESC`;
+    const escapedUpdatedSinceJql = this.escapeJqlValue(updatedSinceJql);
+    const jql = `project = "${escapedProjectKey}" AND updated >= "${escapedUpdatedSinceJql}" ORDER BY updated DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const maxResults = 100;

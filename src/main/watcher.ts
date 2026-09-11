@@ -1,6 +1,6 @@
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
-import { getAlertById, getStoredIssues, saveAlert, saveIssue, updateStatus, getStatus } from './storage';
+import { getAlertById, getStoredIssues, saveAlert, saveIssues, updateStatus, getStatus } from './storage';
 import { formatDateInLocalTimezone, isOnOrAfterIso, localTimezoneLabel, minutesFromNowIso, normalizeSummary, startOfLocalWorkWeek, tokenizeSummary } from '../shared/utils';
 import { StoredIssue } from '../shared/types';
 import { showPopup, logHeartbeat } from './alertService';
@@ -24,12 +24,13 @@ export async function runWatcher(
 
   const storedIssues = getStoredIssues();
   const existingKeys = new Set(storedIssues.map((issue) => issue.key));
+  const issuesToSave: StoredIssue[] = [];
 
   let newIssues = 0;
   for (const issue of issues) {
     if (!existingKeys.has(issue.key)) {
       newIssues++;
-      saveIssue({
+      issuesToSave.push({
         ...issue,
         summaryNormalized: normalizeSummary(issue.summary),
         summaryTokens: tokenizeSummary(issue.summary)
@@ -37,7 +38,9 @@ export async function runWatcher(
     }
   }
 
-  const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => isOnOrAfterIso(issue.created, sinceIso));
+  saveIssues(issuesToSave);
+
+  const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => isOnOrAfterIso(issue.updated, sinceIso));
   const groups = buildClusters(allIssues, similarityThreshold);
   console.log(`[watcher] ${allIssues.length} stored issues since start of work week, ${groups.length} matching clusters found`);
   let alertsSent = 0;
