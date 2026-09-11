@@ -12,6 +12,7 @@ type StorageState = {
 };
 
 let cachedState: StorageState | null = null;
+let cachedStateMtimeMs: number | null = null;
 
 function createDefaultStatus(): AppStatus {
   return {
@@ -59,49 +60,26 @@ function normalizeState(state: Partial<StorageState> | undefined): StorageState 
   };
 }
 
-function sleep(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
-function withFileLock<T>(action: () => T): T {
-  ensureDataDir();
-  const lockDir = `${dataFile}.lock`;
-  const deadline = Date.now() + 2000;
-
-  while (true) {
-    try {
-      fs.mkdirSync(lockDir);
-      break;
-    } catch (error) {
-      if (!(error instanceof Error) || !('code' in error) || (error as NodeJS.ErrnoException).code !== 'EEXIST' || Date.now() >= deadline) {
-        throw error;
-      }
-
-      sleep(25);
-    }
-  }
-
+function getDataFileMtimeMs(): number | null {
   try {
-    return action();
-  } finally {
-    try {
-      fs.rmdirSync(lockDir);
-    } catch {
-      // Ignore lock cleanup errors.
-    }
+    return fs.statSync(dataFile).mtimeMs;
+  } catch {
+    return null;
   }
 }
 
 function writeState(state: StorageState): void {
   ensureDataDir();
   fs.writeFileSync(dataFile, JSON.stringify(state, null, 2), 'utf8');
+  cachedStateMtimeMs = getDataFileMtimeMs();
 }
 
 function resetState(): StorageState {
   const initialState = createDefaultState();
-  cachedState = initialState;
-  withFileLock(() => writeState(initialState));
-  return initialState;
+  const normalizedState = normalizeState(initialState);
+  cachedState = normalizedState;
+  writeState(normalizedState);
+  return normalizedState;
 }
 
 function readStateFromDisk(): StorageState {
@@ -136,20 +114,21 @@ function readStateFromDisk(): StorageState {
 }
 
 function getState(): StorageState {
-  if (!cachedState) {
+  const currentMtimeMs = getDataFileMtimeMs();
+
+  if (!cachedState || cachedStateMtimeMs !== currentMtimeMs) {
     cachedState = readStateFromDisk();
+    cachedStateMtimeMs = currentMtimeMs;
   }
 
   return cachedState;
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  withFileLock(() => {
-    const nextState = structuredClone(readStateFromDisk());
-    mutator(nextState);
-    cachedState = normalizeState(nextState);
-    writeState(cachedState);
-  });
+  const nextState = structuredClone(getState());
+  mutator(nextState);
+  cachedState = normalizeState(nextState);
+  writeState(cachedState);
 }
 
 export function getStoredIssues(): StoredIssue[] {

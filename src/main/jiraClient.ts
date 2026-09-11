@@ -32,7 +32,7 @@ export class JiraClient {
   private formatJqlDateTime(sinceIso: string): string {
     const date = new Date(sinceIso);
     if (!Number.isFinite(date.getTime())) {
-      return '1970-01-01 00:00';
+      return '1970-01-01 00:00 +0000';
     }
 
     const year = date.getUTCFullYear();
@@ -40,7 +40,7 @@ export class JiraClient {
     const day = String(date.getUTCDate()).padStart(2, '0');
     const hours = String(date.getUTCHours()).padStart(2, '0');
     const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    return `${year}-${month}-${day} ${hours}:${minutes} +0000`;
   }
 
   private escapeJqlValue(value: string): string {

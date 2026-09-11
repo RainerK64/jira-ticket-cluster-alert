@@ -22,7 +22,7 @@ function renderIssueLinks(issueKeys: string[], issueUrls: string[]): string {
       return issueKeyHtml;
     }
 
-    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noreferrer">${issueKeyHtml}</a>`;
+    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noopener noreferrer">${issueKeyHtml}</a>`;
   }).join(', ');
 }
 
