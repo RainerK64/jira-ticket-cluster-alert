@@ -58,9 +58,7 @@ function normalizeState(state: Partial<StorageState> | undefined): StorageState 
 
 function writeState(state: StorageState): void {
   ensureDataDir();
-  const tempFile = `${dataFile}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(state, null, 2), 'utf8');
-  fs.renameSync(tempFile, dataFile);
+  fs.writeFileSync(dataFile, JSON.stringify(state, null, 2), 'utf8');
 }
 
 function resetState(): StorageState {
