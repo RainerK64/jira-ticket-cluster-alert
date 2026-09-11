@@ -1,7 +1,7 @@
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { getAlertById, getStoredIssues, saveAlert, saveIssue, updateStatus, getStatus } from './storage';
-import { formatIsoInTimezone, isOnOrAfterIso, minutesFromNowIso, normalizeSummary, startOfWorkWeekIso, tokenizeSummary } from '../shared/utils';
+import { formatDateInLocalTimezone, isOnOrAfterIso, localTimezoneLabel, minutesFromNowIso, normalizeSummary, startOfLocalWorkWeek, tokenizeSummary } from '../shared/utils';
 import { StoredIssue } from '../shared/types';
 import { showPopup, logHeartbeat } from './alertService';
 
@@ -9,17 +9,17 @@ export async function runWatcher(
   jira: JiraClient,
   projectKey: string,
   similarityThreshold: number,
-  workWeekTimezoneOffsetHours: number,
   pollIntervalSeconds: number
 ): Promise<void> {
   const startedPoll = new Date().toISOString();
   updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(Math.ceil(pollIntervalSeconds / 60)) });
 
-  const sinceIso = startOfWorkWeekIso(workWeekTimezoneOffsetHours);
-  const sinceJql = formatIsoInTimezone(sinceIso, workWeekTimezoneOffsetHours);
-  const timezoneLabel = `GMT${workWeekTimezoneOffsetHours >= 0 ? '+' : ''}${workWeekTimezoneOffsetHours}`;
+  const localWorkWeekStart = startOfLocalWorkWeek();
+  const sinceIso = localWorkWeekStart.toISOString();
+  const sinceJql = formatDateInLocalTimezone(localWorkWeekStart);
+  const timezoneLabel = localTimezoneLabel(localWorkWeekStart);
   const issues = await jira.searchRecentIssues(projectKey, sinceJql);
-  console.log(`[watcher] using work week start ${sinceJql} (${timezoneLabel})`);
+  console.log(`[watcher] using local work week start ${sinceJql} (${timezoneLabel})`);
   console.log(`[watcher] fetched ${issues.length} recent issues from project ${projectKey}`);
 
   const storedIssues = getStoredIssues();

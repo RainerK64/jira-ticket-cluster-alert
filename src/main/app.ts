@@ -131,7 +131,7 @@ async function main(): Promise<void> {
 
   const tick = async () => {
     try {
-      await runWatcher(jira, config.jiraProjectKey, config.similarityThreshold, config.workWeekTimezoneOffsetHours, config.pollIntervalSeconds);
+      await runWatcher(jira, config.jiraProjectKey, config.similarityThreshold, config.pollIntervalSeconds);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       updateStatus({ lastError: message, lastPollAt: new Date().toISOString() });

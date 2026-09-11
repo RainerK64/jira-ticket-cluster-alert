@@ -3,7 +3,7 @@
 A beginner-friendly standalone desktop-style app that watches Jira tickets and alerts when 3 or more similar summaries appear.
 
 ## What it does
-- Monitors Jira issues in the configured project from the start of the current work week
+- Monitors Jira issues in the configured project from the start of the current work week using the local machine time
 - Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
 - Saves ticket and alert history locally in a JSON file
@@ -44,7 +44,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - You will see console messages like:
   - `Jira Ticket Cluster Alert started.`
   - `Polling every 60 seconds...`
-  - `[watcher] using work week start 2026-09-08 00:00 +0200 (GMT+2)`
+  - `[watcher] using local work week start 2026-09-08 00:00 +0200 (GMT+2)`
   - `[watcher] fetched 3 recent issues from project IT`
   - `[watcher] 3 stored issues since start of work week, 1 matching clusters found`
   - `[running] last poll: ...`
@@ -54,6 +54,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - On the status page, the ticket numbers are clickable links to the Jira tickets.
 - If port 3333 is busy, the app will try 3334 and tell you in the console.
 - When it alerts, you will get a desktop notification.
+- The app uses your PC's local timezone to decide when the work week starts, with Monday at 00:00 local time.
 
 ## Security note
 If you ever paste a real Jira API token into chat or share it, revoke it and create a new one.
