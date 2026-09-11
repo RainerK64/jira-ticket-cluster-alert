@@ -76,7 +76,7 @@ async function main(): Promise<void> {
                   ${recentAlerts.map((alert) => `
                     <li>
                       <strong>${renderIssueLinks(alert.issueKeys, alert.issueUrls)}</strong><br />
-                      <span class="muted">${alert.summaries.join(' | ')}</span>
+                      <span class="muted">${alert.summaries.map((summary) => escapeHtml(summary)).join(' | ')}</span>
                     </li>
                   `).join('')}
                 </ul>

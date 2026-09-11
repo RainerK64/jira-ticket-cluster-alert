@@ -12,6 +12,7 @@ type StorageState = {
 };
 
 let cachedState: StorageState | null = null;
+let writeQueue: Promise<void> = Promise.resolve();
 
 function createDefaultStatus(): AppStatus {
   return {
@@ -59,6 +60,39 @@ function normalizeState(state: Partial<StorageState> | undefined): StorageState 
   };
 }
 
+function sleep(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withFileLock<T>(action: () => T): T {
+  ensureDataDir();
+  const lockDir = `${dataFile}.lock`;
+  const deadline = Date.now() + 2000;
+
+  while (true) {
+    try {
+      fs.mkdirSync(lockDir);
+      break;
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || (error as NodeJS.ErrnoException).code !== 'EEXIST' || Date.now() >= deadline) {
+        throw error;
+      }
+
+      sleep(25);
+    }
+  }
+
+  try {
+    return action();
+  } finally {
+    try {
+      fs.rmdirSync(lockDir);
+    } catch {
+      // Ignore lock cleanup errors.
+    }
+  }
+}
+
 function writeState(state: StorageState): void {
   ensureDataDir();
   fs.writeFileSync(dataFile, JSON.stringify(state, null, 2), 'utf8');
@@ -67,7 +101,7 @@ function writeState(state: StorageState): void {
 function resetState(): StorageState {
   const initialState = createDefaultState();
   cachedState = initialState;
-  writeState(initialState);
+  withFileLock(() => writeState(initialState));
   return initialState;
 }
 
@@ -75,13 +109,13 @@ function readStateFromDisk(): StorageState {
   ensureDataDir();
 
   if (!fs.existsSync(dataFile)) {
-    return resetState();
+    return createDefaultState();
   }
 
   try {
     const raw = fs.readFileSync(dataFile, 'utf8');
     if (!raw.trim()) {
-      return resetState();
+      return createDefaultState();
     }
 
     try {
@@ -95,7 +129,7 @@ function readStateFromDisk(): StorageState {
         // If the backup rename fails, continue with a reset state rather than crashing startup.
       }
 
-      return resetState();
+      return createDefaultState();
     }
   } catch {
     throw new Error(`Failed to read storage state from ${dataFile}`);
@@ -111,10 +145,23 @@ function getState(): StorageState {
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  const nextState = structuredClone(getState());
-  mutator(nextState);
-  cachedState = normalizeState(nextState);
-  writeState(cachedState);
+  let nextState!: StorageState;
+  let writeError: unknown;
+
+  writeQueue = writeQueue.then(() => {
+    withFileLock(() => {
+      nextState = structuredClone(readStateFromDisk());
+      mutator(nextState);
+      cachedState = normalizeState(nextState);
+      writeState(cachedState);
+    });
+  }).catch((error) => {
+    writeError = error;
+  });
+
+  if (writeError) {
+    throw writeError;
+  }
 }
 
 export function getStoredIssues(): StoredIssue[] {

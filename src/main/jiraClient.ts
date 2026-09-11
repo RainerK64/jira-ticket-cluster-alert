@@ -29,14 +29,18 @@ export class JiraClient {
     });
   }
 
-  private getRelativeUpdatedFilter(sinceIso: string): string {
-    const sinceTime = new Date(sinceIso).getTime();
-    if (!Number.isFinite(sinceTime)) {
-      return '-24h';
+  private formatJqlDateTime(sinceIso: string): string {
+    const date = new Date(sinceIso);
+    if (!Number.isFinite(date.getTime())) {
+      return '1970-01-01 00:00';
     }
 
-    const hoursAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 60 * 1000)));
-    return `-${hoursAgo}h`;
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 
   private escapeJqlValue(value: string): string {
@@ -44,9 +48,9 @@ export class JiraClient {
   }
 
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
-    const updatedFilter = this.getRelativeUpdatedFilter(sinceIso);
+    const updatedFilter = this.formatJqlDateTime(sinceIso);
     const escapedProjectKey = this.escapeJqlValue(projectKey);
-    const jql = `project = "${escapedProjectKey}" AND updated >= ${updatedFilter} ORDER BY created DESC`;
+    const jql = `project = "${escapedProjectKey}" AND updated >= "${updatedFilter}" ORDER BY created DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
     let res = await this.search(primaryUrl, jql);
