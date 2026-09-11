@@ -36,6 +36,17 @@ export function minutesFromNowIso(minutes: number): string {
   return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
+export function isOnOrAfterIso(valueIso: string, thresholdIso: string): boolean {
+  const valueTime = new Date(valueIso).getTime();
+  const thresholdTime = new Date(thresholdIso).getTime();
+
+  if (!Number.isFinite(valueTime) || !Number.isFinite(thresholdTime)) {
+    return false;
+  }
+
+  return valueTime >= thresholdTime;
+}
+
 export function makeClusterId(signature: string): string {
   return signature
     .toLowerCase()

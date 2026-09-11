@@ -192,13 +192,23 @@ export function getStoredIssues(): StoredIssue[] {
 }
 
 export function saveIssue(issue: StoredIssue): void {
-  updateState((state) => {
-    const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
+  saveIssues([issue]);
+}
 
-    if (index >= 0) {
-      state.issues[index] = issue;
-    } else {
-      state.issues.unshift(issue);
+export function saveIssues(issues: StoredIssue[]): void {
+  if (!issues.length) {
+    return;
+  }
+
+  updateState((state) => {
+    for (const issue of issues) {
+      const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
+
+      if (index >= 0) {
+        state.issues[index] = issue;
+      } else {
+        state.issues.unshift(issue);
+      }
     }
   });
 }
