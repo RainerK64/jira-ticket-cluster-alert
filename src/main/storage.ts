@@ -54,10 +54,7 @@ function normalizeStatus(status: Partial<AppStatus> | undefined): AppStatus {
 function normalizeState(state: Partial<StorageState> | undefined): StorageState {
   return {
     issues: Array.isArray(state?.issues) ? state.issues : [],
-    alerts: Array.isArray(state?.alerts) ? state.alerts.map((alert) => ({
-      ...alert,
-      issueUrls: Array.isArray(alert.issueUrls) ? alert.issueUrls : []
-    })) : [],
+    alerts: Array.isArray(state?.alerts) ? state.alerts : [],
     appStatus: normalizeStatus(state?.appStatus)
   };
 }
