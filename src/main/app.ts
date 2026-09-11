@@ -13,16 +13,18 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function renderIssueLinks(issueKeys: string[], issueUrls: string[]): string {
+function renderIssueLinksWithSummaries(issueKeys: string[], issueUrls: string[], summaries: string[]): string {
   return issueKeys.map((issueKey, index) => {
     const issueUrl = issueUrls[index];
+    const summary = summaries[index] ?? '';
     const issueKeyHtml = escapeHtml(issueKey);
+    const label = escapeHtml(`${issueKey}: ${summary}`);
 
     if (!issueUrl) {
       return issueKeyHtml;
     }
 
-    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noopener noreferrer">${issueKeyHtml}</a>`;
+    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${label}">${issueKeyHtml}</a>`;
   }).join(', ');
 }
 
@@ -75,7 +77,7 @@ async function main(): Promise<void> {
                 <ul>
                   ${recentAlerts.map((alert) => `
                     <li>
-                      <strong>${renderIssueLinks(alert.issueKeys, alert.issueUrls)}</strong><br />
+                      <strong>${renderIssueLinksWithSummaries(alert.issueKeys, alert.issueUrls, alert.summaries)}</strong><br />
                       <span class="muted">${alert.summaries.map((summary) => escapeHtml(summary)).join(' | ')}</span>
                     </li>
                   `).join('')}

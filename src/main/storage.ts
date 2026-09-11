@@ -122,7 +122,7 @@ function getState(): StorageState {
 
   if (!cachedState || String(cachedStateMtimeMs) !== currentVersion) {
     cachedState = readStateFromDisk();
-    cachedStateMtimeMs = currentVersion === 'missing' ? null : Number(currentVersion);
+    cachedStateMtimeMs = getDataFileMtimeMs();
   }
 
   return cachedState;
