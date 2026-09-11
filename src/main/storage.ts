@@ -68,6 +68,10 @@ function getDataFileMtimeMs(): number | null {
   }
 }
 
+function getDataFileVersion(): string {
+  return fs.existsSync(dataFile) ? String(getDataFileMtimeMs()) : 'missing';
+}
+
 function writeState(state: StorageState): void {
   ensureDataDir();
   fs.writeFileSync(dataFile, JSON.stringify(state, null, 2), 'utf8');
@@ -114,18 +118,18 @@ function readStateFromDisk(): StorageState {
 }
 
 function getState(): StorageState {
-  const currentMtimeMs = getDataFileMtimeMs();
+  const currentVersion = getDataFileVersion();
 
-  if (!cachedState || cachedStateMtimeMs !== currentMtimeMs) {
+  if (!cachedState || String(cachedStateMtimeMs) !== currentVersion) {
     cachedState = readStateFromDisk();
-    cachedStateMtimeMs = currentMtimeMs;
+    cachedStateMtimeMs = currentVersion === 'missing' ? null : Number(currentVersion);
   }
 
   return cachedState;
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  const nextState = structuredClone(getState());
+  const nextState = structuredClone(readStateFromDisk());
   mutator(nextState);
   cachedState = normalizeState(nextState);
   writeState(cachedState);

@@ -30,6 +30,13 @@ export class JiraClient {
   }
 
   private formatJqlDateTime(sinceIso: string): string {
+    const isoMatch = sinceIso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/);
+    if (isoMatch) {
+      const [, datePart, timePart, offsetPart] = isoMatch;
+      const normalizedOffset = offsetPart === 'Z' ? '+0000' : offsetPart.replace(':', '');
+      return `${datePart} ${timePart} ${normalizedOffset}`;
+    }
+
     const date = new Date(sinceIso);
     if (!Number.isFinite(date.getTime())) {
       return '1970-01-01 00:00 +0000';
