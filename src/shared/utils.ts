@@ -28,8 +28,18 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function hoursAgoIso(hours: number): string {
-  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+export function startOfWorkWeekIso(timezoneOffsetHours: number): string {
+  const offsetMs = timezoneOffsetHours * 60 * 60 * 1000;
+  const shiftedNow = new Date(Date.now() + offsetMs);
+  const dayOfWeek = shiftedNow.getUTCDay();
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  const shiftedMidnightMs = Date.UTC(
+    shiftedNow.getUTCFullYear(),
+    shiftedNow.getUTCMonth(),
+    shiftedNow.getUTCDate()
+  );
+  const weekStartUtcMs = shiftedMidnightMs - (daysSinceMonday * 24 * 60 * 60 * 1000) - offsetMs;
+  return new Date(weekStartUtcMs).toISOString();
 }
 
 export function minutesFromNowIso(minutes: number): string {

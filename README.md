@@ -3,7 +3,7 @@
 A beginner-friendly standalone desktop-style app that watches Jira tickets and alerts when 3 or more similar summaries appear.
 
 ## What it does
-- Monitors recent Jira issues in the configured project
+- Monitors Jira issues in the configured project from the start of the current work week
 - Clusters similar summaries using word-overlap matching
 - Sends a popup notification when a 3+ ticket cluster appears
 - Saves ticket and alert history locally in a JSON file
@@ -45,7 +45,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
   - `Jira Ticket Cluster Alert started.`
   - `Polling every 60 seconds...`
   - `[watcher] fetched 3 recent issues from project IT`
-  - `[watcher] 3 stored issues in alert window, 1 matching clusters found`
+  - `[watcher] 3 stored issues since start of work week, 1 matching clusters found`
   - `[running] last poll: ...`
 - Open the status page in your browser:
   - `http://localhost:3333`

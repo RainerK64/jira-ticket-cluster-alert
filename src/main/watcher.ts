@@ -1,7 +1,7 @@
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { getAlertById, getStoredIssues, saveAlert, saveIssue, updateStatus, getStatus } from './storage';
-import { hoursAgoIso, minutesFromNowIso, normalizeSummary, tokenizeSummary } from '../shared/utils';
+import { minutesFromNowIso, normalizeSummary, startOfWorkWeekIso, tokenizeSummary } from '../shared/utils';
 import { StoredIssue } from '../shared/types';
 import { showPopup, logHeartbeat } from './alertService';
 
@@ -9,13 +9,13 @@ export async function runWatcher(
   jira: JiraClient,
   projectKey: string,
   similarityThreshold: number,
-  alertWindowHours: number,
+  workWeekTimezoneOffsetHours: number,
   pollIntervalSeconds: number
 ): Promise<void> {
   const startedPoll = new Date().toISOString();
   updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(Math.ceil(pollIntervalSeconds / 60)) });
 
-  const sinceIso = hoursAgoIso(alertWindowHours);
+  const sinceIso = startOfWorkWeekIso(workWeekTimezoneOffsetHours);
   const issues = await jira.searchRecentIssues(projectKey, sinceIso);
   console.log(`[watcher] fetched ${issues.length} recent issues from project ${projectKey}`);
 
@@ -36,7 +36,7 @@ export async function runWatcher(
 
   const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => issue.created >= sinceIso);
   const groups = buildClusters(allIssues, similarityThreshold);
-  console.log(`[watcher] ${allIssues.length} stored issues in alert window, ${groups.length} matching clusters found`);
+  console.log(`[watcher] ${allIssues.length} stored issues since start of work week, ${groups.length} matching clusters found`);
   let alertsSent = 0;
 
   for (const group of groups) {
