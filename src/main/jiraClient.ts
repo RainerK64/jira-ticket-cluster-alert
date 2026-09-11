@@ -12,7 +12,7 @@ export class JiraClient {
     return `Basic ${token}`;
   }
 
-  private async search(url: string, jql: string, startAt: number, maxResults: number): Promise<Response> {
+  private async searchWithPost(url: string, jql: string, startAt: number, maxResults: number): Promise<Response> {
     return fetch(url, {
       method: 'POST',
       signal: AbortSignal.timeout(15000),
@@ -27,6 +27,24 @@ export class JiraClient {
         maxResults,
         fields: ['summary', 'created', 'updated']
       })
+    });
+  }
+
+  private async searchWithGet(url: string, jql: string, startAt: number, maxResults: number): Promise<Response> {
+    const params = new URLSearchParams({
+      jql,
+      startAt: String(startAt),
+      maxResults: String(maxResults),
+      fields: 'summary,created,updated'
+    });
+
+    return fetch(`${url}?${params.toString()}`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Authorization: this.authHeader,
+        Accept: 'application/json'
+      }
     });
   }
 
@@ -59,8 +77,8 @@ export class JiraClient {
     const updatedFilter = this.formatJqlDateTime(sinceIso);
     const escapedProjectKey = this.escapeJqlValue(projectKey);
     const jql = `project = "${escapedProjectKey}" AND updated >= "${updatedFilter}" ORDER BY created DESC`;
-    const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
-    const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
+    const primaryUrl = `${this.baseUrl}/rest/api/3/search`;
+    const fallbackUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const maxResults = 100;
     const issueKeyPrefix = `${projectKey.toUpperCase()}-`;
     const collectedIssues: JiraIssue[] = [];
@@ -68,10 +86,10 @@ export class JiraClient {
     let total = Infinity;
 
     while (startAt < total) {
-      let res = await this.search(primaryUrl, jql, startAt, maxResults);
+      let res = await this.searchWithPost(primaryUrl, jql, startAt, maxResults);
 
-      if (res.status === 404 || res.status === 405) {
-        res = await this.search(fallbackUrl, jql, startAt, maxResults);
+      if (res.status === 404 || res.status === 405 || res.status === 410) {
+        res = await this.searchWithGet(fallbackUrl, jql, startAt, maxResults);
       }
 
       if (!res.ok) {
