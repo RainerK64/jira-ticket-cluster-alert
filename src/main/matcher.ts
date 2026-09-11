@@ -1,5 +1,5 @@
 import { AlertCluster, StoredIssue } from '../shared/types';
-import { makeClusterId, normalizeSummary, nowIso, tokenizeSummary, uniqueSorted, wordOverlapScore } from '../shared/utils';
+import { diceCoefficient, makeClusterId, normalizeSummary, nowIso, tokenizeSummary, wordOverlapScore } from '../shared/utils';
 
 export function combinedSimilarity(a: StoredIssue, b: StoredIssue): number {
   if (a.summaryNormalized === b.summaryNormalized) return 1;
@@ -9,11 +9,11 @@ export function combinedSimilarity(a: StoredIssue, b: StoredIssue): number {
   const overlap = wordOverlapScore(tokensA, tokensB);
   const sharedWords = tokensA.filter((t) => tokensB.includes(t)).length;
   const coverage = sharedWords / Math.max(1, Math.min(tokensA.length, tokensB.length));
-
+  const phraseSimilarity = diceCoefficient(a.summaryNormalized, b.summaryNormalized);
   const lenRatio = Math.min(tokensA.length, tokensB.length) / Math.max(tokensA.length || 1, tokensB.length || 1);
   const firstWordsMatch = tokensA[0] && tokensB[0] && tokensA[0] === tokensB[0] ? 0.1 : 0;
 
-  return Math.max(0, Math.min(1, (overlap * 0.45) + (coverage * 0.35) + (lenRatio * 0.1) + firstWordsMatch));
+  return Math.max(0, Math.min(1, (overlap * 0.35) + (coverage * 0.25) + (phraseSimilarity * 0.25) + (lenRatio * 0.05) + firstWordsMatch));
 }
 
 type MatchGroup = {
@@ -40,13 +40,14 @@ export function buildClusters(issues: StoredIssue[], threshold: number): MatchGr
   const groups: MatchGroup[] = [];
 
   while (remaining.length > 0) {
-    const base = remaining.shift()!;
-    const clustered: StoredIssue[] = [base];
+    const clustered: StoredIssue[] = [remaining.shift()!];
 
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      if (combinedSimilarity(base, remaining[i]) >= threshold) {
-        clustered.push(remaining[i]);
-        remaining.splice(i, 1);
+    for (let queueIndex = 0; queueIndex < clustered.length; queueIndex++) {
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        if (combinedSimilarity(clustered[queueIndex], remaining[i]) >= threshold) {
+          clustered.push(remaining[i]);
+          remaining.splice(i, 1);
+        }
       }
     }
 
