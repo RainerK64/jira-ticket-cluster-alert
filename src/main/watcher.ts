@@ -1,7 +1,7 @@
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { getAlertById, getStoredIssues, saveAlert, saveIssue, updateStatus, getStatus } from './storage';
-import { minutesFromNowIso, normalizeSummary, startOfWorkWeekIso, tokenizeSummary } from '../shared/utils';
+import { formatIsoInTimezone, isOnOrAfterIso, minutesFromNowIso, normalizeSummary, startOfWorkWeekIso, tokenizeSummary } from '../shared/utils';
 import { StoredIssue } from '../shared/types';
 import { showPopup, logHeartbeat } from './alertService';
 
@@ -16,7 +16,10 @@ export async function runWatcher(
   updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(Math.ceil(pollIntervalSeconds / 60)) });
 
   const sinceIso = startOfWorkWeekIso(workWeekTimezoneOffsetHours);
-  const issues = await jira.searchRecentIssues(projectKey, sinceIso);
+  const sinceJql = formatIsoInTimezone(sinceIso, workWeekTimezoneOffsetHours);
+  const timezoneLabel = `GMT${workWeekTimezoneOffsetHours >= 0 ? '+' : ''}${workWeekTimezoneOffsetHours}`;
+  const issues = await jira.searchRecentIssues(projectKey, sinceJql);
+  console.log(`[watcher] using work week start ${sinceJql} (${timezoneLabel})`);
   console.log(`[watcher] fetched ${issues.length} recent issues from project ${projectKey}`);
 
   const storedIssues = getStoredIssues();
@@ -34,7 +37,7 @@ export async function runWatcher(
     }
   }
 
-  const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => issue.created >= sinceIso);
+  const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => isOnOrAfterIso(issue.created, sinceIso));
   const groups = buildClusters(allIssues, similarityThreshold);
   console.log(`[watcher] ${allIssues.length} stored issues since start of work week, ${groups.length} matching clusters found`);
   let alertsSent = 0;

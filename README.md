@@ -44,6 +44,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - You will see console messages like:
   - `Jira Ticket Cluster Alert started.`
   - `Polling every 60 seconds...`
+  - `[watcher] using work week start 2026-09-08 00:00 +0200 (GMT+2)`
   - `[watcher] fetched 3 recent issues from project IT`
   - `[watcher] 3 stored issues since start of work week, 1 matching clusters found`
   - `[running] last poll: ...`

@@ -28,6 +28,10 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
 export function startOfWorkWeekIso(timezoneOffsetHours: number): string {
   const offsetMs = timezoneOffsetHours * 60 * 60 * 1000;
   const shiftedNow = new Date(Date.now() + offsetMs);
@@ -40,6 +44,33 @@ export function startOfWorkWeekIso(timezoneOffsetHours: number): string {
   );
   const weekStartUtcMs = shiftedMidnightMs - (daysSinceMonday * 24 * 60 * 60 * 1000) - offsetMs;
   return new Date(weekStartUtcMs).toISOString();
+}
+
+export function formatIsoInTimezone(iso: string, timezoneOffsetHours: number): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) {
+    return '1970-01-01 00:00 +0000';
+  }
+
+  const offsetMinutes = Math.round(timezoneOffsetHours * 60);
+  const shiftedDate = new Date(date.getTime() + offsetMinutes * 60 * 1000);
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const offsetHoursPart = pad2(Math.floor(absoluteMinutes / 60));
+  const offsetMinutesPart = pad2(absoluteMinutes % 60);
+
+  return `${shiftedDate.getUTCFullYear()}-${pad2(shiftedDate.getUTCMonth() + 1)}-${pad2(shiftedDate.getUTCDate())} ${pad2(shiftedDate.getUTCHours())}:${pad2(shiftedDate.getUTCMinutes())} ${sign}${offsetHoursPart}${offsetMinutesPart}`;
+}
+
+export function isOnOrAfterIso(valueIso: string, thresholdIso: string): boolean {
+  const valueTime = new Date(valueIso).getTime();
+  const thresholdTime = new Date(thresholdIso).getTime();
+
+  if (!Number.isFinite(valueTime) || !Number.isFinite(thresholdTime)) {
+    return false;
+  }
+
+  return valueTime >= thresholdTime;
 }
 
 export function minutesFromNowIso(minutes: number): string {
