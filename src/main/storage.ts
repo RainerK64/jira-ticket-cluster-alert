@@ -11,6 +11,8 @@ type StorageState = {
   appStatus: AppStatus;
 };
 
+let cachedState: StorageState | null = null;
+
 function createDefaultStatus(): AppStatus {
   return {
     running: true,
@@ -63,11 +65,12 @@ function writeState(state: StorageState): void {
 
 function resetState(): StorageState {
   const initialState = createDefaultState();
+  cachedState = initialState;
   writeState(initialState);
   return initialState;
 }
 
-function readState(): StorageState {
+function readStateFromDisk(): StorageState {
   ensureDataDir();
 
   if (!fs.existsSync(dataFile)) {
@@ -88,46 +91,59 @@ function readState(): StorageState {
   }
 }
 
+function getState(): StorageState {
+  if (!cachedState) {
+    cachedState = readStateFromDisk();
+  }
+
+  return cachedState;
+}
+
+function updateState(mutator: (state: StorageState) => void): void {
+  const nextState = structuredClone(getState());
+  mutator(nextState);
+  cachedState = normalizeState(nextState);
+  writeState(cachedState);
+}
+
 export function getStoredIssues(): StoredIssue[] {
-  return readState().issues;
+  return getState().issues;
 }
 
 export function saveIssue(issue: StoredIssue): void {
-  const state = readState();
-  const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
+  updateState((state) => {
+    const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
 
-  if (index >= 0) {
-    state.issues[index] = issue;
-  } else {
-    state.issues.unshift(issue);
-  }
-
-  writeState(state);
+    if (index >= 0) {
+      state.issues[index] = issue;
+    } else {
+      state.issues.unshift(issue);
+    }
+  });
 }
 
 export function saveAlert(alert: AlertCluster): void {
-  const state = readState();
-  const index = state.alerts.findIndex((storedAlert) => storedAlert.id === alert.id);
+  updateState((state) => {
+    const index = state.alerts.findIndex((storedAlert) => storedAlert.id === alert.id);
 
-  if (index >= 0) {
-    state.alerts[index] = alert;
-  } else {
-    state.alerts.unshift(alert);
-  }
-
-  writeState(state);
+    if (index >= 0) {
+      state.alerts[index] = alert;
+    } else {
+      state.alerts.unshift(alert);
+    }
+  });
 }
 
 export function getAlertById(id: string): AlertCluster | undefined {
-  return readState().alerts.find((alert) => alert.id === id);
+  return getState().alerts.find((alert) => alert.id === id);
 }
 
 export function getStatus(): AppStatus {
-  return readState().appStatus;
+  return getState().appStatus;
 }
 
 export function updateStatus(patch: Partial<AppStatus>): void {
-  const state = readState();
-  state.appStatus = { ...state.appStatus, ...patch };
-  writeState(state);
+  updateState((state) => {
+    state.appStatus = normalizeStatus({ ...state.appStatus, ...patch });
+  });
 }
