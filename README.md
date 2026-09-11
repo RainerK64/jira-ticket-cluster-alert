@@ -44,6 +44,8 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
 - You will see console messages like:
   - `Jira Ticket Cluster Alert started.`
   - `Polling every 60 seconds...`
+  - `[watcher] fetched 3 recent issues from project IT`
+  - `[watcher] 3 stored issues in alert window, 1 matching clusters found`
   - `[running] last poll: ...`
 - Open the status page in your browser:
   - `http://localhost:3333`
