@@ -24,17 +24,16 @@ export async function runWatcher(
 
   const storedIssues = getStoredIssues();
   const existingKeys = new Set(storedIssues.map((issue) => issue.key));
-  const issuesToSave: StoredIssue[] = [];
+  const issuesToSave: StoredIssue[] = issues.map((issue) => ({
+    ...issue,
+    summaryNormalized: normalizeSummary(issue.summary),
+    summaryTokens: tokenizeSummary(issue.summary)
+  }));
 
   let newIssues = 0;
   for (const issue of issues) {
     if (!existingKeys.has(issue.key)) {
       newIssues++;
-      issuesToSave.push({
-        ...issue,
-        summaryNormalized: normalizeSummary(issue.summary),
-        summaryTokens: tokenizeSummary(issue.summary)
-      });
     }
   }
 
