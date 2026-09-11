@@ -107,7 +107,7 @@ function updateState(mutator: (state: StorageState) => void): void {
 }
 
 export function getStoredIssues(): StoredIssue[] {
-  return getState().issues;
+  return structuredClone(getState().issues);
 }
 
 export function saveIssue(issue: StoredIssue): void {
@@ -135,11 +135,12 @@ export function saveAlert(alert: AlertCluster): void {
 }
 
 export function getAlertById(id: string): AlertCluster | undefined {
-  return getState().alerts.find((alert) => alert.id === id);
+  const alert = getState().alerts.find((entry) => entry.id === id);
+  return alert ? structuredClone(alert) : undefined;
 }
 
 export function getStatus(): AppStatus {
-  return getState().appStatus;
+  return structuredClone(getState().appStatus);
 }
 
 export function updateStatus(patch: Partial<AppStatus>): void {
