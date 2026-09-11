@@ -74,6 +74,15 @@ function getDataFileVersion(): string {
   return fs.existsSync(dataFile) ? String(getDataFileMtimeMs()) : 'missing';
 }
 
+function isWindowsRenameLockError(error: unknown): boolean {
+  if (process.platform !== 'win32') {
+    return false;
+  }
+
+  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+  return code === 'EPERM' || code === 'EACCES' || code === 'EBUSY';
+}
+
 function writeState(state: StorageState): void {
   ensureDataDir();
   const nextContent = JSON.stringify(state, null, 2);
@@ -83,10 +92,17 @@ function writeState(state: StorageState): void {
   try {
     fs.renameSync(tempFile, dataFile);
   } catch (error) {
-    if (fs.existsSync(tempFile)) {
-      fs.rmSync(tempFile, { force: true });
+    if (isWindowsRenameLockError(error)) {
+      fs.writeFileSync(dataFile, nextContent, 'utf8');
+      if (fs.existsSync(tempFile)) {
+        fs.rmSync(tempFile, { force: true });
+      }
+    } else {
+      if (fs.existsSync(tempFile)) {
+        fs.rmSync(tempFile, { force: true });
+      }
+      throw error;
     }
-    throw error;
   }
   cachedStateMtimeMs = getDataFileMtimeMs();
 }
