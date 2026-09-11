@@ -1,5 +1,5 @@
 const STOPWORDS = new Set([
-  'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being',
+  'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being','not',
   'cannot','cant','unable','issue','problem','error','ticket','request','please'
 ]);
 
@@ -19,8 +19,9 @@ export function tokenizeSummary(summary: string): string[] {
     .map((token) => token
       .replace(/^\d+/, '')
       .replace(/\d+$/, '')
+      .replace(/test[a-z0-9_-]*/i, 'test')
       .replace(/(ing|ed|es|s)$/i, ''))
-    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+    .filter((token) => token.length > 2 && !STOPWORDS.has(token) && token !== 'test');
 }
 
 export function nowIso(): string {
@@ -79,4 +80,23 @@ export function diceCoefficient(a: string, b: string): number {
   }
 
   return (2 * matches) / ((a.length - 1) + (b.length - 1));
+}
+
+export function commonTopicScore(a: string[], b: string[]): number {
+  const sharedTokens = [...new Set(a)].filter((token) => b.includes(token));
+  if (!sharedTokens.length) return 0;
+
+  const longestTokenLength = sharedTokens.reduce((longest, token) => Math.max(longest, token.length), 0);
+  const firstTokenMatch = a[0] && b[0] && a[0] === b[0];
+
+  let score = 0;
+  if (longestTokenLength >= 5) {
+    score += 0.2;
+  }
+
+  if (firstTokenMatch && longestTokenLength >= 5) {
+    score += 0.15;
+  }
+
+  return Math.min(score, 0.35);
 }

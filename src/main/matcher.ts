@@ -1,5 +1,5 @@
 import { AlertCluster, StoredIssue } from '../shared/types';
-import { diceCoefficient, makeClusterId, normalizeSummary, nowIso, tokenizeSummary, wordOverlapScore } from '../shared/utils';
+import { commonTopicScore, diceCoefficient, makeClusterId, normalizeSummary, nowIso, tokenizeSummary, wordOverlapScore } from '../shared/utils';
 
 export function combinedSimilarity(a: StoredIssue, b: StoredIssue): number {
   if (a.summaryNormalized === b.summaryNormalized) return 1;
@@ -10,10 +10,11 @@ export function combinedSimilarity(a: StoredIssue, b: StoredIssue): number {
   const sharedWords = tokensA.filter((t) => tokensB.includes(t)).length;
   const coverage = sharedWords / Math.max(1, Math.min(tokensA.length, tokensB.length));
   const phraseSimilarity = diceCoefficient(a.summaryNormalized, b.summaryNormalized);
+  const topicScore = commonTopicScore(tokensA, tokensB);
   const lenRatio = Math.min(tokensA.length, tokensB.length) / Math.max(tokensA.length || 1, tokensB.length || 1);
   const firstWordsMatch = tokensA[0] && tokensB[0] && tokensA[0] === tokensB[0] ? 0.1 : 0;
 
-  return Math.max(0, Math.min(1, (overlap * 0.35) + (coverage * 0.25) + (phraseSimilarity * 0.25) + (lenRatio * 0.05) + firstWordsMatch));
+  return Math.max(0, Math.min(1, (overlap * 0.25) + (coverage * 0.2) + (phraseSimilarity * 0.2) + (topicScore * 0.25) + (lenRatio * 0.05) + firstWordsMatch));
 }
 
 type MatchGroup = {
