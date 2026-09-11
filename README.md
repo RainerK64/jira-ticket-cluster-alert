@@ -49,6 +49,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
   - `[running] last poll: ...`
 - Open the status page in your browser:
   - `http://localhost:3333`
+- Alert popups and the status page show the matching ticket numbers.
 - If port 3333 is busy, the app will try 3334 and tell you in the console.
 - When it alerts, you will get a desktop notification.
 
