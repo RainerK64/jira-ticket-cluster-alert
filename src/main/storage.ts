@@ -147,6 +147,10 @@ export function getAlertById(id: string): AlertCluster | undefined {
   return alert ? structuredClone(alert) : undefined;
 }
 
+export function getRecentAlerts(limit = 5): AlertCluster[] {
+  return structuredClone(getState().alerts.slice(0, limit));
+}
+
 export function getStatus(): AppStatus {
   return structuredClone(getState().appStatus);
 }

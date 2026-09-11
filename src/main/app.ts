@@ -2,7 +2,7 @@ import http from 'http';
 import { loadConfig } from './config';
 import { JiraClient } from './jiraClient';
 import { runWatcher } from './watcher';
-import { getStatus, updateStatus } from './storage';
+import { getRecentAlerts, getStatus, updateStatus } from './storage';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -21,6 +21,7 @@ async function main(): Promise<void> {
 
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
+      const recentAlerts = getRecentAlerts();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
         <html>
@@ -32,6 +33,8 @@ async function main(): Promise<void> {
               .running { color: #0f766e; font-weight: bold; }
               .muted { color: #6b7280; }
               code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
+              ul { padding-left: 20px; }
+              li { margin-bottom: 10px; }
             </style>
           </head>
           <body>
@@ -45,6 +48,17 @@ async function main(): Promise<void> {
               <p>Next poll: <code>${current.nextPollAt ?? 'n/a'}</code></p>
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
+              <h2>Recent alerts</h2>
+              ${recentAlerts.length ? `
+                <ul>
+                  ${recentAlerts.map((alert) => `
+                    <li>
+                      <strong>${alert.issueKeys.join(', ')}</strong><br />
+                      <span class="muted">${alert.summaries.join(' | ')}</span>
+                    </li>
+                  `).join('')}
+                </ul>
+              ` : '<p class="muted">No alerts yet.</p>'}
               <p class="muted">Keep this window open to see live status.</p>
             </div>
           </body>
