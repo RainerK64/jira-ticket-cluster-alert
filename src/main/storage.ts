@@ -142,7 +142,7 @@ function updateState(mutator: (state: StorageState) => void): void {
   flushingMutations = true;
 
   try {
-    const nextState = structuredClone(readStateFromDisk());
+    const nextState = structuredClone(getState());
 
     while (pendingMutations.length) {
       const nextMutation = pendingMutations.shift();
