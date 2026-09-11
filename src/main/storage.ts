@@ -90,13 +90,13 @@ function readStateFromDisk(): StorageState {
   ensureDataDir();
 
   if (!fs.existsSync(dataFile)) {
-    return createDefaultState();
+    return resetState();
   }
 
   try {
     const raw = fs.readFileSync(dataFile, 'utf8');
     if (!raw.trim()) {
-      return createDefaultState();
+      return resetState();
     }
 
     try {
@@ -110,7 +110,7 @@ function readStateFromDisk(): StorageState {
         // If the backup rename fails, continue with a reset state rather than crashing startup.
       }
 
-      return createDefaultState();
+      return resetState();
     }
   } catch {
     throw new Error(`Failed to read storage state from ${dataFile}`);
@@ -129,7 +129,7 @@ function getState(): StorageState {
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  const nextState = structuredClone(readStateFromDisk());
+  const nextState = structuredClone(getState());
   mutator(nextState);
   cachedState = normalizeState(nextState);
   writeState(cachedState);
