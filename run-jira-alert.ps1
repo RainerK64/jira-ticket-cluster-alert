@@ -40,6 +40,31 @@ function Stop-NodeProcessesForPath {
             Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
         }
     }
+
+    function Test-SafeTargetFolder {
+        param([string]$TargetPath)
+
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($TargetPath).TrimEnd('\')
+        } catch {
+            return $false
+        }
+
+        if ([string]::IsNullOrWhiteSpace($fullPath)) {
+            return $false
+        }
+
+        $rootPath = [System.IO.Path]::GetPathRoot($fullPath).TrimEnd('\')
+        $userProfilePath = [Environment]::GetFolderPath('UserProfile').TrimEnd('\')
+        $relativePath = $fullPath.Substring($rootPath.Length).Trim('\')
+        $segments = @($relativePath -split '[\\/]') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+        if ($fullPath -eq $rootPath -or $fullPath -eq $userProfilePath) {
+            return $false
+        }
+
+        return $segments.Count -ge 2
+    }
 }
 
 function New-Field {
@@ -153,6 +178,11 @@ if ([string]::IsNullOrWhiteSpace($settings.JiraBaseUrl) -or
 
 $branch = $settings.Branch
 $targetFolder = $settings.TargetFolder
+
+if (-not (Test-SafeTargetFolder $targetFolder)) {
+    Fail "Please choose a dedicated install folder such as 'C:\temp\jira-ticket-cluster-alert'. The script will not delete high-level folders."
+}
+
 $parentFolder = Split-Path -Parent $targetFolder
 if (-not (Test-Path $parentFolder)) {
     New-Item -ItemType Directory -Path $parentFolder -Force | Out-Null
