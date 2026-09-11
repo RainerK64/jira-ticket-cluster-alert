@@ -28,56 +28,8 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-function pad2(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-export function startOfLocalWorkWeek(now: Date = new Date()): Date {
-  const weekStart = new Date(now);
-  const dayOfWeek = weekStart.getDay();
-  const daysSinceMonday = (dayOfWeek + 6) % 7;
-  weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() - daysSinceMonday);
-  return weekStart;
-}
-
-export function startOfLocalWorkWeekIso(now: Date = new Date()): string {
-  return startOfLocalWorkWeek(now).toISOString();
-}
-
-export function formatDateInLocalTimezone(date: Date): string {
-  if (!Number.isFinite(date.getTime())) {
-    return '1970-01-01 00:00 +0000';
-  }
-
-  const offsetMinutes = -date.getTimezoneOffset();
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absoluteMinutes = Math.abs(offsetMinutes);
-  const offsetHoursPart = pad2(Math.floor(absoluteMinutes / 60));
-  const offsetMinutesPart = pad2(absoluteMinutes % 60);
-
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())} ${sign}${offsetHoursPart}${offsetMinutesPart}`;
-}
-
-export function localTimezoneLabel(date: Date): string {
-  if (!Number.isFinite(date.getTime())) {
-    return 'GMT+0';
-  }
-
-  const offsetHours = -date.getTimezoneOffset() / 60;
-  const formattedHours = Number.isInteger(offsetHours) ? String(offsetHours) : offsetHours.toFixed(1);
-  return `GMT${offsetHours >= 0 ? '+' : ''}${formattedHours}`;
-}
-
-export function isOnOrAfterIso(valueIso: string, thresholdIso: string): boolean {
-  const valueTime = new Date(valueIso).getTime();
-  const thresholdTime = new Date(thresholdIso).getTime();
-
-  if (!Number.isFinite(valueTime) || !Number.isFinite(thresholdTime)) {
-    return false;
-  }
-
-  return valueTime >= thresholdTime;
+export function hoursAgoIso(hours: number): string {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
 
 export function minutesFromNowIso(minutes: number): string {

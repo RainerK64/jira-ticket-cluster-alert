@@ -16,7 +16,6 @@ export type AlertCluster = {
   signature: string;
   count: number;
   issueKeys: string[];
-  issueUrls: string[];
   summaries: string[];
   firstSeenAt: string;
   lastSeenAt: string;

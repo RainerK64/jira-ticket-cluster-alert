@@ -9,6 +9,7 @@ export type AppConfig = {
   jiraProjectKey: string;
   pollIntervalSeconds: number;
   similarityThreshold: number;
+  alertWindowHours: number;
   appStatusPort: number;
 };
 
@@ -34,6 +35,7 @@ export function loadConfig(): AppConfig {
     jiraProjectKey: process.env.JIRA_PROJECT_KEY ?? 'IT',
     pollIntervalSeconds: parseNumber('POLL_INTERVAL_SECONDS', '60'),
     similarityThreshold: Math.min(0.99, Math.max(0.1, Number(process.env.SIMILARITY_THRESHOLD ?? '0.72'))),
+    alertWindowHours: parseNumber('ALERT_WINDOW_HOURS', '24'),
     appStatusPort: parseNumber('APP_STATUS_PORT', '3333')
   };
 }

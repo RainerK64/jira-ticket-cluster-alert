@@ -77,7 +77,6 @@ export function buildClusters(issues: StoredIssue[], threshold: number): MatchGr
 export function createAlertFromGroup(group: MatchGroup): AlertCluster {
   const orderedIssues = [...group.issues].sort((a, b) => a.key.localeCompare(b.key));
   const issueKeys = orderedIssues.map((i) => i.key);
-  const issueUrls = orderedIssues.map((i) => i.url);
   const summaries = orderedIssues.map((i) => i.summary);
   const createdTimes = orderedIssues.map((i) => i.created).sort();
 
@@ -86,7 +85,6 @@ export function createAlertFromGroup(group: MatchGroup): AlertCluster {
     signature: group.signature,
     count: orderedIssues.length,
     issueKeys,
-    issueUrls,
     summaries,
     firstSeenAt: createdTimes[0] ?? nowIso(),
     lastSeenAt: createdTimes.at(-1) ?? nowIso(),

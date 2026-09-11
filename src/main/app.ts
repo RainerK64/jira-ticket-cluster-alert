@@ -13,21 +13,6 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function renderIssueLinksWithSummaries(issueKeys: string[], issueUrls: string[], summaries: string[]): string {
-  return issueKeys.map((issueKey, index) => {
-    const issueUrl = issueUrls[index];
-    const summary = summaries[index] ?? '';
-    const issueKeyHtml = escapeHtml(issueKey);
-    const label = escapeHtml(`${issueKey}: ${summary}`);
-
-    if (!issueUrl) {
-      return issueKeyHtml;
-    }
-
-    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${label}">${issueKeyHtml}</a>`;
-  }).join(', ');
-}
-
 async function main(): Promise<void> {
   const config = loadConfig();
   const initialStatus = getStatus();
@@ -77,8 +62,8 @@ async function main(): Promise<void> {
                 <ul>
                   ${recentAlerts.map((alert) => `
                     <li>
-                      <strong>${renderIssueLinksWithSummaries(alert.issueKeys, alert.issueUrls, alert.summaries)}</strong><br />
-                      <span class="muted">${alert.summaries.map((summary) => escapeHtml(summary)).join(' | ')}</span>
+                      <strong>${alert.issueKeys.map(escapeHtml).join(', ')}</strong><br />
+                      <span class="muted">${alert.summaries.map(escapeHtml).join(' | ')}</span>
                     </li>
                   `).join('')}
                 </ul>
@@ -131,7 +116,7 @@ async function main(): Promise<void> {
 
   const tick = async () => {
     try {
-      await runWatcher(jira, config.jiraProjectKey, config.similarityThreshold, config.pollIntervalSeconds);
+      await runWatcher(jira, config.jiraProjectKey, config.similarityThreshold, config.alertWindowHours, config.pollIntervalSeconds);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       updateStatus({ lastError: message, lastPollAt: new Date().toISOString() });

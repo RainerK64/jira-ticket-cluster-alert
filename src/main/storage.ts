@@ -82,10 +82,9 @@ function writeState(state: StorageState): void {
 
 function resetState(): StorageState {
   const initialState = createDefaultState();
-  const normalizedState = normalizeState(initialState);
-  cachedState = normalizedState;
-  writeState(normalizedState);
-  return normalizedState;
+  cachedState = initialState;
+  writeState(initialState);
+  return initialState;
 }
 
 function readStateFromDisk(): StorageState {
@@ -103,7 +102,7 @@ function readStateFromDisk(): StorageState {
 
     try {
       const normalizedState = normalizeState(JSON.parse(raw) as Partial<StorageState>);
-      const normalizedRaw = `${JSON.stringify(normalizedState, null, 2)}\n`;
+      const normalizedRaw = JSON.stringify(normalizedState, null, 2);
       if (normalizedRaw !== raw) {
         cachedState = normalizedState;
         writeState(normalizedState);
@@ -165,23 +164,13 @@ export function getStoredIssues(): StoredIssue[] {
 }
 
 export function saveIssue(issue: StoredIssue): void {
-  saveIssues([issue]);
-}
-
-export function saveIssues(issues: StoredIssue[]): void {
-  if (!issues.length) {
-    return;
-  }
-
   updateState((state) => {
-    for (const issue of issues) {
-      const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
+    const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
 
-      if (index >= 0) {
-        state.issues[index] = issue;
-      } else {
-        state.issues.unshift(issue);
-      }
+    if (index >= 0) {
+      state.issues[index] = issue;
+    } else {
+      state.issues.unshift(issue);
     }
   });
 }
