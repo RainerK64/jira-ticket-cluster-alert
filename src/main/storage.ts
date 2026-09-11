@@ -12,7 +12,6 @@ type StorageState = {
 };
 
 let cachedState: StorageState | null = null;
-let writeQueue: Promise<void> = Promise.resolve();
 
 function createDefaultStatus(): AppStatus {
   return {
@@ -145,23 +144,12 @@ function getState(): StorageState {
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  let nextState!: StorageState;
-  let writeError: unknown;
-
-  writeQueue = writeQueue.then(() => {
-    withFileLock(() => {
-      nextState = structuredClone(readStateFromDisk());
-      mutator(nextState);
-      cachedState = normalizeState(nextState);
-      writeState(cachedState);
-    });
-  }).catch((error) => {
-    writeError = error;
+  withFileLock(() => {
+    const nextState = structuredClone(readStateFromDisk());
+    mutator(nextState);
+    cachedState = normalizeState(nextState);
+    writeState(cachedState);
   });
-
-  if (writeError) {
-    throw writeError;
-  }
 }
 
 export function getStoredIssues(): StoredIssue[] {
