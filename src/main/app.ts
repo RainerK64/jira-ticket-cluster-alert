@@ -4,6 +4,28 @@ import { JiraClient } from './jiraClient';
 import { runWatcher } from './watcher';
 import { getRecentAlerts, getStatus, updateStatus } from './storage';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderIssueLinks(issueKeys: string[], issueUrls: string[]): string {
+  return issueKeys.map((issueKey, index) => {
+    const issueUrl = issueUrls[index];
+    const issueKeyHtml = escapeHtml(issueKey);
+
+    if (!issueUrl) {
+      return issueKeyHtml;
+    }
+
+    return `<a href="${escapeHtml(issueUrl)}" target="_blank" rel="noreferrer">${issueKeyHtml}</a>`;
+  }).join(', ');
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   const initialStatus = getStatus();
@@ -53,7 +75,7 @@ async function main(): Promise<void> {
                 <ul>
                   ${recentAlerts.map((alert) => `
                     <li>
-                      <strong>${alert.issueKeys.join(', ')}</strong><br />
+                      <strong>${renderIssueLinks(alert.issueKeys, alert.issueUrls)}</strong><br />
                       <span class="muted">${alert.summaries.join(' | ')}</span>
                     </li>
                   `).join('')}

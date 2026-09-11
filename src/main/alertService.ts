@@ -29,7 +29,7 @@ export function showPopup(alert: AlertCluster, status: AppStatus): void {
   console.log(`Count: ${alert.count}`);
   console.log(`Ticket numbers: ${alert.issueKeys.join(', ')}`);
   for (let i = 0; i < alert.issueKeys.length; i++) {
-    console.log(`- ${alert.issueKeys[i]} — ${alert.summaries[i] ?? ''}`);
+    console.log(`- ${alert.issueKeys[i]} — ${alert.summaries[i] ?? ''} — ${alert.issueUrls[i] ?? ''}`);
   }
   console.log('========================================\n');
 }
