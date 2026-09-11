@@ -20,7 +20,7 @@ export function tokenizeSummary(summary: string): string[] {
       .replace(/^test(?:[\d_-].*)$/i, 'test')
       .replace(/^\d+/, '')
       .replace(/\d+$/, '')
-      .replace(/(ing|ed|es|s)$/i, ''))
+      .replace(/(ing|ed)$/i, ''))
     .filter((token) => token.length > 2 && !STOPWORDS.has(token) && token !== 'test');
 }
 
