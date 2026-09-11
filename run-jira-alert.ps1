@@ -175,8 +175,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Set-Location $targetFolder
 
-$packageJson = Get-Content '.\package.json' -Raw
-if ($packageJson -match '"better-sqlite3"\s*:') {
+$packageJson = Get-Content '.\package.json' -Raw | ConvertFrom-Json
+$allDependencies = @($packageJson.dependencies.PSObject.Properties.Name) + @($packageJson.devDependencies.PSObject.Properties.Name)
+if ($allDependencies -contains 'better-sqlite3') {
     Fail "The downloaded branch '$branch' is still outdated because package.json still contains better-sqlite3."
 }
 

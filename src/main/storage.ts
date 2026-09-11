@@ -83,11 +83,21 @@ function readStateFromDisk(): StorageState {
       return resetState();
     }
 
-    return normalizeState(JSON.parse(raw) as Partial<StorageState>);
+    try {
+      return normalizeState(JSON.parse(raw) as Partial<StorageState>);
+    } catch {
+      const backupFile = `${dataFile}.corrupt-${Date.now()}`;
+
+      try {
+        fs.renameSync(dataFile, backupFile);
+      } catch {
+        // If the backup rename fails, continue with a reset state rather than crashing startup.
+      }
+
+      return resetState();
+    }
   } catch {
-    const backupFile = `${dataFile}.corrupt-${Date.now()}`;
-    fs.renameSync(dataFile, backupFile);
-    return resetState();
+    throw new Error(`Failed to read storage state from ${dataFile}`);
   }
 }
 

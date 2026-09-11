@@ -46,7 +46,7 @@ export class JiraClient {
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
     const updatedFilter = this.getRelativeUpdatedFilter(sinceIso);
     const escapedProjectKey = this.escapeJqlValue(projectKey);
-    const jql = `project = "${escapedProjectKey}" AND key ~ "${escapedProjectKey}-" AND updated >= ${updatedFilter} ORDER BY created DESC`;
+    const jql = `project = "${escapedProjectKey}" AND updated >= ${updatedFilter} ORDER BY created DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
     let res = await this.search(primaryUrl, jql);
