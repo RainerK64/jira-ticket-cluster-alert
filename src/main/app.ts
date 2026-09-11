@@ -13,6 +13,12 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function issueLink(baseUrl: string, key: string, url?: string): string {
+  const href = escapeHtml(url || `${baseUrl}/browse/${key}`);
+  const label = escapeHtml(key);
+  return `<a href="${href}" target="_blank" rel="noreferrer">${label}</a>`;
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   const initialStatus = getStatus();
@@ -62,7 +68,7 @@ async function main(): Promise<void> {
                 <ul>
                   ${recentAlerts.map((alert) => `
                     <li>
-                      <strong>${alert.issueKeys.map(escapeHtml).join(', ')}</strong><br />
+                      <strong>${alert.issueKeys.map((key, index) => issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])).join(', ')}</strong><br />
                       <span class="muted">${alert.summaries.map(escapeHtml).join(' | ')}</span>
                     </li>
                   `).join('')}

@@ -1,6 +1,6 @@
 const STOPWORDS = new Set([
   'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being','not',
-  'cannot','cant','unable','issue','problem','error','ticket','request','please'
+  'cannot','cant','unable','issue','problem','error','ticket','request','please','need','help'
 ]);
 
 export function normalizeSummary(summary: string): string {
