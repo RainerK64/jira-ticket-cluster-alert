@@ -17,6 +17,7 @@ export async function runWatcher(
 
   const sinceIso = hoursAgoIso(alertWindowHours);
   const issues = await jira.searchRecentIssues(projectKey, sinceIso);
+  console.log(`[watcher] fetched ${issues.length} recent issues from project ${projectKey}`);
 
   const storedIssues = getStoredIssues();
   const existingKeys = new Set(storedIssues.map((issue) => issue.key));
@@ -35,6 +36,7 @@ export async function runWatcher(
 
   const allIssues: StoredIssue[] = getStoredIssues().filter((issue) => issue.created >= sinceIso);
   const groups = buildClusters(allIssues, similarityThreshold);
+  console.log(`[watcher] ${allIssues.length} stored issues in alert window, ${groups.length} matching clusters found`);
   let alertsSent = 0;
 
   for (const group of groups) {

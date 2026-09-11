@@ -29,8 +29,19 @@ export class JiraClient {
     });
   }
 
+  private getRelativeUpdatedFilter(sinceIso: string): string {
+    const sinceTime = new Date(sinceIso).getTime();
+    if (!Number.isFinite(sinceTime)) {
+      return '-24h';
+    }
+
+    const hoursAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 60 * 1000)));
+    return `-${hoursAgo}h`;
+  }
+
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
-    const jql = `project = ${projectKey} AND updated >= "${sinceIso}" ORDER BY created DESC`;
+    const updatedFilter = this.getRelativeUpdatedFilter(sinceIso);
+    const jql = `project = ${projectKey} AND updated >= ${updatedFilter} ORDER BY created DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
     let res = await this.search(primaryUrl, jql);
