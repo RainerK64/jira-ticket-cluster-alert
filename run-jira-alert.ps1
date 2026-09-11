@@ -4,7 +4,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $repoUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git'
-$branch = 'copilot/create-powershell-bootstrap-script'
+$branch = 'main'
 $targetFolder = 'C:\temp\jira-ticket-cluster-alert'
 
 function Fail {
@@ -22,6 +22,24 @@ function Confirm-Action {
     param([string]$Message)
 
     return [System.Windows.Forms.MessageBox]::Show($Message, 'Jira Ticket Cluster Alert Setup', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question) -eq [System.Windows.Forms.DialogResult]::Yes
+}
+
+function Stop-NodeProcessesForPath {
+    param([string]$PathToMatch)
+
+    if (-not (Test-Path $PathToMatch)) {
+        return
+    }
+
+    $normalizedPath = $PathToMatch.ToLowerInvariant()
+    $nodeProcesses = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue
+
+    foreach ($process in $nodeProcesses) {
+        $commandLine = ($process.CommandLine ?? '').ToLowerInvariant()
+        if ($commandLine -and $commandLine.Contains($normalizedPath)) {
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function New-Field {
@@ -57,7 +75,7 @@ function Show-SetupForm {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'Jira Ticket Cluster Alert Setup'
     $form.StartPosition = 'CenterScreen'
-    $form.Size = New-Object System.Drawing.Size(500, 340)
+    $form.Size = New-Object System.Drawing.Size(500, 380)
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
@@ -75,12 +93,13 @@ function Show-SetupForm {
     $emailBox = New-Field -Form $form -LabelText 'Jira Email' -Top 100
     $tokenBox = New-Field -Form $form -LabelText 'Jira API Token' -Top 140 -IsPassword $true
     $projectKeyBox = New-Field -Form $form -LabelText 'Jira Project Key' -Top 180 -DefaultValue 'IT'
-    $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 220 -DefaultValue $targetFolder
+    $branchBox = New-Field -Form $form -LabelText 'Git Branch' -Top 220 -DefaultValue $branch
+    $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 260 -DefaultValue $targetFolder
 
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = 'Start Setup'
     $okButton.Left = 270
-    $okButton.Top = 260
+    $okButton.Top = 300
     $okButton.Width = 90
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $form.Controls.Add($okButton)
@@ -88,7 +107,7 @@ function Show-SetupForm {
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = 'Cancel'
     $cancelButton.Left = 370
-    $cancelButton.Top = 260
+    $cancelButton.Top = 300
     $cancelButton.Width = 90
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $form.Controls.Add($cancelButton)
@@ -105,6 +124,7 @@ function Show-SetupForm {
         JiraEmail = $emailBox.Text.Trim()
         JiraApiToken = $tokenBox.Text
         JiraProjectKey = $projectKeyBox.Text.Trim()
+        Branch = $branchBox.Text.Trim()
         TargetFolder = $targetFolderBox.Text.Trim()
     }
 }
@@ -126,10 +146,12 @@ if ([string]::IsNullOrWhiteSpace($settings.JiraBaseUrl) -or
     [string]::IsNullOrWhiteSpace($settings.JiraEmail) -or
     [string]::IsNullOrWhiteSpace($settings.JiraApiToken) -or
     [string]::IsNullOrWhiteSpace($settings.JiraProjectKey) -or
+    [string]::IsNullOrWhiteSpace($settings.Branch) -or
     [string]::IsNullOrWhiteSpace($settings.TargetFolder)) {
-    Fail 'Please fill in Jira Base URL, Jira Email, Jira API Token, Jira Project Key, and Install Folder.'
+    Fail 'Please fill in Jira Base URL, Jira Email, Jira API Token, Jira Project Key, Git Branch, and Install Folder.'
 }
 
+$branch = $settings.Branch
 $targetFolder = $settings.TargetFolder
 $parentFolder = Split-Path -Parent $targetFolder
 if (-not (Test-Path $parentFolder)) {
@@ -141,14 +163,11 @@ if (Test-Path $targetFolder) {
         exit
     }
 
-    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-NodeProcessesForPath $targetFolder
     Remove-Item $targetFolder -Recurse -Force
 }
-else {
-    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-}
 
-Write-Host 'Downloading the fixed branch from GitHub...'
+Write-Host "Downloading branch '$branch' from GitHub..."
 git clone --branch $branch $repoUrl $targetFolder
 if ($LASTEXITCODE -ne 0) {
     Fail "Could not clone branch '$branch' from GitHub."
@@ -158,7 +177,7 @@ Set-Location $targetFolder
 
 $packageJson = Get-Content '.\package.json' -Raw
 if ($packageJson -match '"better-sqlite3"\s*:') {
-    Fail "The downloaded branch is still outdated because package.json still contains better-sqlite3."
+    Fail "The downloaded branch '$branch' is still outdated because package.json still contains better-sqlite3."
 }
 
 @"
