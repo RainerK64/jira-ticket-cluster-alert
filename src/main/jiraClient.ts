@@ -46,9 +46,7 @@ export class JiraClient {
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
     const updatedFilter = this.getRelativeUpdatedFilter(sinceIso);
     const escapedProjectKey = this.escapeJqlValue(projectKey);
-    const issueKeyPrefix = `${projectKey.toUpperCase()}-`;
-    const escapedIssueKeyPrefix = this.escapeJqlValue(issueKeyPrefix);
-    const jql = `project = "${escapedProjectKey}" AND key ~ "${escapedIssueKeyPrefix}" AND updated >= ${updatedFilter} ORDER BY created DESC`;
+    const jql = `project = "${escapedProjectKey}" AND updated >= ${updatedFilter} ORDER BY created DESC`;
     const primaryUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search`;
     let res = await this.search(primaryUrl, jql);
@@ -76,7 +74,6 @@ export class JiraClient {
     const issues = Array.isArray(data.issues) ? data.issues : [];
     return issues
       .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
-      .filter((issue) => issue.key.toUpperCase().startsWith(issueKeyPrefix))
       .map((issue) => ({
         key: issue.key,
         summary: issue.fields!.summary!,

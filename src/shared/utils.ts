@@ -17,9 +17,9 @@ export function tokenizeSummary(summary: string): string[] {
     .split(' ')
     .map((token) => token.trim())
     .map((token) => token
+      .replace(/^test(?:[\d_-].*)$/i, 'test')
       .replace(/^\d+/, '')
       .replace(/\d+$/, '')
-      .replace(/test[a-z0-9_-]*/i, 'test')
       .replace(/(ing|ed|es|s)$/i, ''))
     .filter((token) => token.length > 2 && !STOPWORDS.has(token) && token !== 'test');
 }

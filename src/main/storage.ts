@@ -76,7 +76,25 @@ function getDataFileVersion(): string {
 
 function writeState(state: StorageState): void {
   ensureDataDir();
-  fs.writeFileSync(dataFile, JSON.stringify(state, null, 2), 'utf8');
+  const nextContent = JSON.stringify(state, null, 2);
+  const tempFile = `${dataFile}.tmp`;
+  fs.writeFileSync(tempFile, nextContent, 'utf8');
+
+  try {
+    if (fs.existsSync(dataFile)) {
+      fs.rmSync(dataFile, { force: true });
+    }
+    fs.renameSync(tempFile, dataFile);
+  } catch (error) {
+    fs.writeFileSync(dataFile, nextContent, 'utf8');
+    if (fs.existsSync(tempFile)) {
+      fs.rmSync(tempFile, { force: true });
+    }
+
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+  }
   cachedStateMtimeMs = getDataFileMtimeMs();
 }
 
