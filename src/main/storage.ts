@@ -13,6 +13,8 @@ type StorageState = {
 
 let cachedState: StorageState | null = null;
 let cachedStateMtimeMs: number | null = null;
+const pendingMutations: Array<(state: StorageState) => void> = [];
+let flushingMutations = false;
 
 function createDefaultStatus(): AppStatus {
   return {
@@ -100,7 +102,13 @@ function readStateFromDisk(): StorageState {
     }
 
     try {
-      return normalizeState(JSON.parse(raw) as Partial<StorageState>);
+      const normalizedState = normalizeState(JSON.parse(raw) as Partial<StorageState>);
+      const normalizedRaw = `${JSON.stringify(normalizedState, null, 2)}\n`;
+      if (normalizedRaw !== raw) {
+        cachedState = normalizedState;
+        writeState(normalizedState);
+      }
+      return normalizedState;
     } catch {
       const backupFile = `${dataFile}.corrupt-${Date.now()}`;
 
@@ -129,10 +137,27 @@ function getState(): StorageState {
 }
 
 function updateState(mutator: (state: StorageState) => void): void {
-  const nextState = structuredClone(getState());
-  mutator(nextState);
-  cachedState = normalizeState(nextState);
-  writeState(cachedState);
+  pendingMutations.push(mutator);
+
+  if (flushingMutations) {
+    return;
+  }
+
+  flushingMutations = true;
+
+  try {
+    const nextState = structuredClone(readStateFromDisk());
+
+    while (pendingMutations.length) {
+      const nextMutation = pendingMutations.shift();
+      nextMutation?.(nextState);
+    }
+
+    cachedState = normalizeState(nextState);
+    writeState(cachedState);
+  } finally {
+    flushingMutations = false;
+  }
 }
 
 export function getStoredIssues(): StoredIssue[] {
