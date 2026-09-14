@@ -1,7 +1,7 @@
 const STOPWORDS = new Set([
-  'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being','not',
+  'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being',
   'cannot','cant','unable','issue','problem','error','ticket','request','please','need','help',
-  'och','og','eller','med','utan','uten','som','att','det','den','kan','ikke','inte','hjelp','snalla','inn'
+  'och','og','eller','med','utan','uten','som','att','det','den','kan','hjelp','snalla','inn'
 ]);
 
 const TOKEN_ALIASES = new Map<string, string>([

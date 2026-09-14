@@ -147,7 +147,11 @@ function readStateFromDisk(): StorageState {
       return resetState();
     }
   } catch {
-    throw new Error(`Failed to read storage state from ${dataFile}`);
+    if (cachedState) {
+      return cachedState;
+    }
+
+    return resetState();
   }
 }
 

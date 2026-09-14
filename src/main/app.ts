@@ -13,8 +13,21 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function issueLink(baseUrl: string, key: string): string {
-  const href = escapeHtml(`${baseUrl}/browse/${key}`);
+function issueLink(baseUrl: string, key: string, url?: string): string {
+  let safeUrl = `${baseUrl}/browse/${key}`;
+
+  if (url) {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+        safeUrl = parsedUrl.toString();
+      }
+    } catch {
+      // Fall back to the expected Jira URL shape.
+    }
+  }
+
+  const href = escapeHtml(safeUrl);
   const label = escapeHtml(key);
   return `<a href="${href}" target="_blank" rel="noreferrer" aria-label="${label}">${label}</a>`;
 }
@@ -72,7 +85,7 @@ async function main(): Promise<void> {
                     <li>
                       <ul class="ticket-list">
                         ${alert.issueKeys.map((key, index) => `
-                          <li>${issueLink(config.jiraBaseUrl, key)} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
+                          <li>${issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
                         `).join('')}
                       </ul>
                     </li>
