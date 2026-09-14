@@ -12,23 +12,6 @@ export class JiraClient {
     return `Basic ${token}`;
   }
 
-  private async search(url: string, jql: string): Promise<Response> {
-    return fetch(url, {
-      method: 'POST',
-      signal: AbortSignal.timeout(15000),
-      headers: {
-        Authorization: this.authHeader,
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        jql,
-        maxResults: 50,
-        fields: ['summary', 'created', 'updated']
-      })
-    });
-  }
-
   private async searchWithPost(url: string, jql: string, startAt: number, maxResults: number): Promise<Response> {
     return fetch(url, {
       method: 'POST',
@@ -86,14 +69,21 @@ export class JiraClient {
     return `${year}-${month}-${day} ${hours}:${minutes} +0000`;
   }
 
+  private formatRelativeUpdatedFilter(sinceIso: string): string {
+    const sinceTime = new Date(sinceIso).getTime();
+    if (!Number.isFinite(sinceTime)) {
+      return '-1440m';
+    }
+
+    const minutesAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 1000)));
+    return `-${minutesAgo}m`;
+  }
+
   private escapeJqlValue(value: string): string {
     return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
-    const updatedFilter = this.formatJqlDateTime(sinceIso);
-    const escapedProjectKey = this.escapeJqlValue(projectKey);
-    const jql = `project = "${escapedProjectKey}" AND updated >= "${updatedFilter}" ORDER BY created DESC`;
+  private async fetchIssuesWithJql(jql: string): Promise<JiraIssue[]> {
     const primaryUrl = `${this.baseUrl}/rest/api/3/search`;
     const fallbackUrl = `${this.baseUrl}/rest/api/3/search/jql`;
     const maxResults = 100;
@@ -153,5 +143,20 @@ export class JiraClient {
     }
 
     return collectedIssues;
+  }
+
+  async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
+    const escapedProjectKey = this.escapeJqlValue(projectKey);
+    const absoluteUpdatedFilter = this.formatJqlDateTime(sinceIso);
+    const relativeUpdatedFilter = this.formatRelativeUpdatedFilter(sinceIso);
+    const absoluteJql = `project = "${escapedProjectKey}" AND updated >= "${absoluteUpdatedFilter}" ORDER BY created DESC`;
+    const relativeJql = `project = "${escapedProjectKey}" AND updated >= ${relativeUpdatedFilter} ORDER BY created DESC`;
+    const absoluteIssues = await this.fetchIssuesWithJql(absoluteJql);
+
+    if (absoluteIssues.length > 0) {
+      return absoluteIssues;
+    }
+
+    return this.fetchIssuesWithJql(relativeJql);
   }
 }
