@@ -72,11 +72,11 @@ export class JiraClient {
   private formatRelativeUpdatedFilter(sinceIso: string): string {
     const sinceTime = new Date(sinceIso).getTime();
     if (!Number.isFinite(sinceTime)) {
-      return '-1440m';
+      return '-24h';
     }
 
-    const minutesAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 1000)));
-    return `-${minutesAgo}m`;
+    const hoursAgo = Math.max(1, Math.ceil((Date.now() - sinceTime) / (60 * 60 * 1000)));
+    return `-${hoursAgo}h`;
   }
 
   private escapeJqlValue(value: string): string {
@@ -149,14 +149,20 @@ export class JiraClient {
     const escapedProjectKey = this.escapeJqlValue(projectKey);
     const absoluteUpdatedFilter = this.formatJqlDateTime(sinceIso);
     const relativeUpdatedFilter = this.formatRelativeUpdatedFilter(sinceIso);
-    const absoluteJql = `project = "${escapedProjectKey}" AND updated >= "${absoluteUpdatedFilter}" ORDER BY created DESC`;
-    const relativeJql = `project = "${escapedProjectKey}" AND updated >= ${relativeUpdatedFilter} ORDER BY created DESC`;
+    const absoluteJql = `project = "${escapedProjectKey}" AND updated >= "${absoluteUpdatedFilter}" ORDER BY updated DESC`;
+    const relativeJql = `project = "${escapedProjectKey}" AND updated >= ${relativeUpdatedFilter} ORDER BY updated DESC`;
+    const projectOnlyJql = `project = "${escapedProjectKey}" ORDER BY updated DESC`;
     const absoluteIssues = await this.fetchIssuesWithJql(absoluteJql);
 
     if (absoluteIssues.length > 0) {
       return absoluteIssues;
     }
 
-    return this.fetchIssuesWithJql(relativeJql);
+    const relativeIssues = await this.fetchIssuesWithJql(relativeJql);
+    if (relativeIssues.length > 0) {
+      return relativeIssues;
+    }
+
+    return this.fetchIssuesWithJql(projectOnlyJql);
   }
 }
