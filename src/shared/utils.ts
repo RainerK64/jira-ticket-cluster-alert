@@ -183,9 +183,13 @@ export function commonTopicScore(a: string[], b: string[]): number {
     score += 0.2;
   }
 
+  if (sharedTokens.length >= 3) {
+    score += 0.2;
+  }
+
   if (firstTokenMatch && longestTokenLength >= 5) {
     score += 0.15;
   }
 
-  return Math.min(score, 0.35);
+  return Math.min(score, 0.5);
 }
