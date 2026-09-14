@@ -16,7 +16,7 @@ function escapeHtml(value: string): string {
 function issueLink(baseUrl: string, key: string, url?: string): string {
   const href = escapeHtml(url || `${baseUrl}/browse/${key}`);
   const label = escapeHtml(key);
-  return `<a href="${href}" target="_blank" rel="noreferrer" aria-label="${label} (opens in a new tab)">${label}</a> <span class="muted">(opens in a new tab)</span>`;
+  return `<a href="${href}" target="_blank" rel="noreferrer" aria-label="${label}">${label}</a>`;
 }
 
 async function main(): Promise<void> {
