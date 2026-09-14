@@ -1,3 +1,4 @@
+import { isOnOrAfterIso } from '../shared/utils';
 import { JiraIssue } from '../shared/types';
 
 export class JiraClient {
@@ -163,6 +164,7 @@ export class JiraClient {
       return relativeIssues;
     }
 
-    return this.fetchIssuesWithJql(projectOnlyJql);
+    return (await this.fetchIssuesWithJql(projectOnlyJql))
+      .filter((issue) => isOnOrAfterIso(issue.updated, sinceIso));
   }
 }
