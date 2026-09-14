@@ -1,7 +1,7 @@
 const STOPWORDS = new Set([
   'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being','not',
   'cannot','cant','unable','issue','problem','error','ticket','request','please','need','help',
-  'och','og','eller','med','utan','uten','som','att','det','den','kan','ikke','inte','hjelp','snalla'
+  'och','og','eller','med','utan','uten','som','att','det','den','kan','ikke','inte','hjelp','snalla','inn'
 ]);
 
 const TOKEN_ALIASES = new Map<string, string>([
@@ -42,6 +42,44 @@ function normalizeCharacters(value: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function canonicalizeToken(token: string): string {
+  const compact = token.replace(/[_-]/g, '');
+
+  if (/^(innlogg|inlogg|inloggn|logg|logge|logga|login)/.test(compact)) {
+    return 'login';
+  }
+
+  if (/^(autentiser|autentis|autentik)/.test(compact)) {
+    return 'authenticator';
+  }
+
+  if (/^(losenord|passord|password)/.test(compact)) {
+    return 'password';
+  }
+
+  if (/^(funger|virk|work)/.test(compact)) {
+    return 'working';
+  }
+
+  if (/^(epost|mejl|mail|email)/.test(compact)) {
+    return 'email';
+  }
+
+  if (/^(oppsett|installasjon|installning|konfigurasjon|setup)/.test(compact)) {
+    return 'setup';
+  }
+
+  if (/^(feil|fel|error)/.test(compact)) {
+    return 'error';
+  }
+
+  if (/^(kode|kod|code)/.test(compact)) {
+    return 'code';
+  }
+
+  return TOKEN_ALIASES.get(compact) ?? TOKEN_ALIASES.get(token) ?? token;
+}
+
 export function normalizeSummary(summary: string): string {
   return normalizeCharacters(summary)
     .toLowerCase()
@@ -60,7 +98,7 @@ export function tokenizeSummary(summary: string): string[] {
       .replace(/^\d+/, '')
       .replace(/\d+$/, '')
       .replace(/(ing|ed)$/i, ''))
-    .map((token) => TOKEN_ALIASES.get(token) ?? token)
+    .map((token) => canonicalizeToken(token))
     .filter((token) => token.length > 2 && !STOPWORDS.has(token) && token !== 'test');
 }
 
