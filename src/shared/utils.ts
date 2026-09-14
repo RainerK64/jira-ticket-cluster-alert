@@ -1,10 +1,49 @@
 const STOPWORDS = new Set([
   'the','a','an','and','or','to','for','in','on','of','with','by','is','are','was','were','be','been','being','not',
-  'cannot','cant','unable','issue','problem','error','ticket','request','please','need','help'
+  'cannot','cant','unable','issue','problem','error','ticket','request','please','need','help',
+  'och','og','eller','med','utan','uten','som','att','det','den','kan','ikke','inte','hjelp','snalla'
 ]);
 
+const TOKEN_ALIASES = new Map<string, string>([
+  ['appen', 'app'],
+  ['applikasjon', 'app'],
+  ['applikation', 'app'],
+  ['autentisering', 'authentication'],
+  ['autentiseringe', 'authentication'],
+  ['bankid', 'bankid'],
+  ['epost', 'email'],
+  ['eposten', 'email'],
+  ['feil', 'error'],
+  ['fel', 'error'],
+  ['fungerar', 'working'],
+  ['fungerer', 'working'],
+  ['hjalp', 'help'],
+  ['innlogging', 'login'],
+  ['innloggning', 'login'],
+  ['inlogging', 'login'],
+  ['inloggning', 'login'],
+  ['kod', 'code'],
+  ['kode', 'code'],
+  ['losenord', 'password'],
+  ['losenords', 'password'],
+  ['mejl', 'email'],
+  ['passord', 'password'],
+  ['passordet', 'password'],
+  ['setuphjalp', 'setup'],
+  ['virker', 'working']
+]);
+
+function normalizeCharacters(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[øØ]/g, 'o')
+    .replace(/[æÆ]/g, 'ae')
+    .replace(/[åÅ]/g, 'a')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function normalizeSummary(summary: string): string {
-  return summary
+  return normalizeCharacters(summary)
     .toLowerCase()
     .replace(/['’"]/g, '')
     .replace(/[^\w\s]/g, ' ')
@@ -21,6 +60,7 @@ export function tokenizeSummary(summary: string): string[] {
       .replace(/^\d+/, '')
       .replace(/\d+$/, '')
       .replace(/(ing|ed)$/i, ''))
+    .map((token) => TOKEN_ALIASES.get(token) ?? token)
     .filter((token) => token.length > 2 && !STOPWORDS.has(token) && token !== 'test');
 }
 
