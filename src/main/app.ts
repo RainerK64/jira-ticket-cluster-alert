@@ -50,6 +50,8 @@ async function main(): Promise<void> {
               code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
               ul { padding-left: 20px; }
               li { margin-bottom: 10px; }
+              .ticket-list { margin-top: 8px; }
+              .ticket-list li { margin-bottom: 6px; }
             </style>
           </head>
           <body>
@@ -68,8 +70,11 @@ async function main(): Promise<void> {
                 <ul>
                   ${recentAlerts.map((alert) => `
                     <li>
-                      <strong>${alert.issueKeys.map((key, index) => issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])).join(', ')}</strong><br />
-                      <span class="muted">${alert.summaries.map(escapeHtml).join(' | ')}</span>
+                      <ul class="ticket-list">
+                        ${alert.issueKeys.map((key, index) => `
+                          <li>${issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
+                        `).join('')}
+                      </ul>
                     </li>
                   `).join('')}
                 </ul>
