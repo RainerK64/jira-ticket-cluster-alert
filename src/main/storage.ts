@@ -170,18 +170,22 @@ function updateState(mutator: (state: StorageState) => void): void {
   }
 
   flushingMutations = true;
+  let mutationsToApply: Array<(state: StorageState) => void> = [];
 
   try {
     const nextState = structuredClone(getState());
+    mutationsToApply = pendingMutations.splice(0, pendingMutations.length);
 
-    while (pendingMutations.length) {
-      const nextMutation = pendingMutations.shift();
+    for (const nextMutation of mutationsToApply) {
       nextMutation?.(nextState);
     }
 
     const normalizedState = normalizeState(nextState);
     writeState(normalizedState);
     cachedState = normalizedState;
+  } catch (error) {
+    pendingMutations.unshift(...mutationsToApply);
+    throw error;
   } finally {
     flushingMutations = false;
   }
@@ -201,14 +205,21 @@ export function saveIssues(issues: StoredIssue[]): void {
   }
 
   updateState((state) => {
-    for (const issue of issues) {
-      const index = state.issues.findIndex((storedIssue) => storedIssue.key === issue.key);
+    const issueIndexByKey = new Map(state.issues.map((storedIssue, index) => [storedIssue.key, index]));
+    const newIssues: StoredIssue[] = [];
 
-      if (index >= 0) {
+    for (const issue of issues) {
+      const index = issueIndexByKey.get(issue.key);
+
+      if (index !== undefined) {
         state.issues[index] = issue;
       } else {
-        state.issues.unshift(issue);
+        newIssues.push(issue);
       }
+    }
+
+    if (newIssues.length) {
+      state.issues.unshift(...newIssues.reverse());
     }
   });
 }

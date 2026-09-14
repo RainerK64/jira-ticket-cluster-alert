@@ -84,7 +84,7 @@ export function normalizeSummary(summary: string): string {
   return normalizeCharacters(summary)
     .toLowerCase()
     .replace(/['’"]/g, '')
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s_]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -93,6 +93,7 @@ export function tokenizeSummary(summary: string): string[] {
   return normalizeSummary(summary)
     .split(' ')
     .map((token) => token.trim())
+    .map((token) => canonicalizeToken(token))
     .map((token) => token
       .replace(/^test(?:[\d_-].*)$/i, 'test')
       .replace(/^\d+/, '')
