@@ -84,66 +84,98 @@ export class JiraClient {
     return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  private async fetchIssuesWithJql(jql: string): Promise<JiraIssue[]> {
-    const primaryUrl = `${this.baseUrl}/rest/api/3/search`;
-    const fallbackUrl = `${this.baseUrl}/rest/api/3/search/jql`;
-    const maxResults = 100;
-    const collectedIssues: JiraIssue[] = [];
-    let startAt = 0;
-    let total = Infinity;
-
-    while (startAt < total) {
-      let res = await this.searchWithPost(primaryUrl, jql, startAt, maxResults);
-
-      if (res.status === 404 || res.status === 405 || res.status === 410) {
-        res = await this.searchWithGet(fallbackUrl, jql, startAt, maxResults);
-      }
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
-      }
-
-      const data = (await res.json()) as {
-        startAt?: number;
-        maxResults?: number;
-        total?: number;
-        issues?: Array<{
-          key: string;
-          fields?: {
-            summary?: string;
-            created?: string;
-            updated?: string;
-          };
-        }>;
+  private mapIssues(data: {
+    issues?: Array<{
+      key: string;
+      fields?: {
+        summary?: string;
+        created?: string;
+        updated?: string;
       };
+    }>;
+  }): JiraIssue[] {
+    const issues = Array.isArray(data.issues) ? data.issues : [];
+    return issues
+      .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
+      .map((issue) => ({
+        key: issue.key,
+        summary: issue.fields!.summary!,
+        created: issue.fields!.created!,
+        updated: issue.fields!.updated!,
+        url: `${this.baseUrl}/browse/${issue.key}`
+      }));
+  }
 
-      const issues = Array.isArray(data.issues) ? data.issues : [];
-      collectedIssues.push(...issues
-        .filter((issue) => !!issue.key && !!issue.fields?.summary && !!issue.fields?.created && !!issue.fields?.updated)
-        .map((issue) => ({
-          key: issue.key,
-          summary: issue.fields!.summary!,
-          created: issue.fields!.created!,
-          updated: issue.fields!.updated!,
-          url: `${this.baseUrl}/browse/${issue.key}`
-        })));
+  private async fetchIssuesWithJql(jql: string): Promise<JiraIssue[]> {
+    const maxResults = 100;
+    const strategies = [
+      {
+        run: (startAt: number) => this.searchWithPost(`${this.baseUrl}/rest/api/3/search`, jql, startAt, maxResults)
+      },
+      {
+        run: (startAt: number) => this.searchWithGet(`${this.baseUrl}/rest/api/3/search/jql`, jql, startAt, maxResults)
+      }
+    ];
+    let lastError: Error | null = null;
+    let sawSuccessfulResponse = false;
 
-      total = Number.isFinite(data.total) ? Number(data.total) : issues.length;
-      const pageSize = Number.isFinite(data.maxResults) && Number(data.maxResults) > 0 ? Number(data.maxResults) : maxResults;
-      const nextStartAt = (Number.isFinite(data.startAt) ? Number(data.startAt) : startAt) + issues.length;
+    for (const strategy of strategies) {
+      const collectedIssues: JiraIssue[] = [];
+      let startAt = 0;
+      let total = Infinity;
 
-      if (!issues.length || nextStartAt <= startAt) {
-        break;
+      while (startAt < total) {
+        const res = await strategy.run(startAt);
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          lastError = new Error(`Jira API error: ${res.status} ${res.statusText} ${text}`.trim());
+          break;
+        }
+
+        sawSuccessfulResponse = true;
+        const data = (await res.json()) as {
+          startAt?: number;
+          maxResults?: number;
+          total?: number;
+          issues?: Array<{
+            key: string;
+            fields?: {
+              summary?: string;
+              created?: string;
+              updated?: string;
+            };
+          }>;
+        };
+
+        const rawIssueCount = Array.isArray(data.issues) ? data.issues.length : 0;
+        const issues = this.mapIssues(data);
+        collectedIssues.push(...issues);
+
+        total = Number.isFinite(data.total) ? Number(data.total) : rawIssueCount;
+        const pageSize = Number.isFinite(data.maxResults) && Number(data.maxResults) > 0 ? Number(data.maxResults) : maxResults;
+        const nextStartAt = (Number.isFinite(data.startAt) ? Number(data.startAt) : startAt) + rawIssueCount;
+
+        if (!rawIssueCount || nextStartAt <= startAt) {
+          break;
+        }
+
+        startAt = nextStartAt;
+        if (rawIssueCount < pageSize) {
+          break;
+        }
       }
 
-      startAt = nextStartAt;
-      if (issues.length < pageSize) {
-        break;
+      if (collectedIssues.length > 0) {
+        return collectedIssues;
       }
     }
 
-    return collectedIssues;
+    if (!sawSuccessfulResponse && lastError) {
+      throw lastError;
+    }
+
+    return [];
   }
 
   async searchRecentIssues(projectKey: string, sinceIso: string): Promise<JiraIssue[]> {
