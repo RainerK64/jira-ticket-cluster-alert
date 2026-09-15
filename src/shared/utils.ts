@@ -42,6 +42,16 @@ const IGNORED_SUMMARIES = new Set([
   'tilgang til'
 ]);
 
+const IGNORED_SUMMARY_PREFIXES = [
+  'request for',
+  'ccoeorder',
+  'p2 triggered',
+  'ict service hierarchy',
+  'auto pre approved',
+  'ny azure ad tilgang',
+  'tilgang til'
+];
+
 function normalizeCharacters(value: string): string {
   return value
     .normalize('NFKD')
@@ -99,7 +109,9 @@ export function normalizeSummary(summary: string): string {
 }
 
 export function isIgnoredSummary(summary: string): boolean {
-  return IGNORED_SUMMARIES.has(normalizeSummary(summary));
+  const normalizedSummary = normalizeSummary(summary);
+  return IGNORED_SUMMARIES.has(normalizedSummary)
+    || IGNORED_SUMMARY_PREFIXES.some((prefix) => normalizedSummary.startsWith(prefix));
 }
 
 export function tokenizeSummary(summary: string): string[] {
