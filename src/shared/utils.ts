@@ -82,7 +82,11 @@ function canonicalizeToken(token: string): string {
     return 'working';
   }
 
-  if (/^(epost|mejl|mail|email)/.test(compact)) {
+  if (/^(mailtrobbel|mailtrouble|mailproblem|outlook)/.test(compact)) {
+    return 'outlook';
+  }
+
+  if (/^(epost|mejl|email)/.test(compact)) {
     return 'email';
   }
 
