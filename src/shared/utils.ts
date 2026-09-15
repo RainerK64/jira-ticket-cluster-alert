@@ -35,7 +35,9 @@ const TOKEN_ALIASES = new Map<string, string>([
 
 const IGNORED_SUMMARIES = new Set([
   'new advisor at external distributor partner',
-  'remove access'
+  'remove access',
+  'ict service hierarchy',
+  'auto pre approved'
 ]);
 
 function normalizeCharacters(value: string): string {
