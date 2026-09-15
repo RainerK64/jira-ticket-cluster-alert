@@ -1,6 +1,6 @@
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
-import { getAlertById, getStoredIssues, saveAlert, saveIssues, updateStatus, getStatus } from './storage';
+import { getAlertById, getStoredIssues, pruneIgnoredData, saveAlert, saveIssues, updateStatus, getStatus } from './storage';
 import { hoursAgoIso, isIgnoredSummary, isOnOrAfterIso, minutesFromNowIso, normalizeSummary, tokenizeSummary } from '../shared/utils';
 import { StoredIssue } from '../shared/types';
 import { showPopup, logHeartbeat } from './alertService';
@@ -14,6 +14,7 @@ export async function runWatcher(
 ): Promise<void> {
   const startedPoll = new Date().toISOString();
   updateStatus({ lastPollAt: startedPoll, nextPollAt: minutesFromNowIso(Math.ceil(pollIntervalSeconds / 60)) });
+  pruneIgnoredData(isIgnoredSummary);
 
   const sinceIso = hoursAgoIso(alertWindowHours);
   const issues = (await jira.searchRecentIssues(projectKey, sinceIso))

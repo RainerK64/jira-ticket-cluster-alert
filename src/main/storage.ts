@@ -240,6 +240,13 @@ export function saveAlert(alert: AlertCluster): void {
   });
 }
 
+export function pruneIgnoredData(shouldIgnoreSummary: (summary: string) => boolean): void {
+  updateState((state) => {
+    state.issues = state.issues.filter((issue) => !shouldIgnoreSummary(issue.summary));
+    state.alerts = state.alerts.filter((alert) => !alert.summaries.some((summary) => shouldIgnoreSummary(summary)));
+  });
+}
+
 export function getAlertById(id: string): AlertCluster | undefined {
   const alert = getState().alerts.find((entry) => entry.id === id);
   return alert ? structuredClone(alert) : undefined;
