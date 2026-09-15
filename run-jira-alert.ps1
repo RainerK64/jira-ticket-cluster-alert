@@ -275,7 +275,6 @@ if ($allDependencies -contains 'better-sqlite3') {
 @"
 JIRA_BASE_URL=$($settings.JiraBaseUrl.TrimEnd('/'))
 JIRA_EMAIL=$($settings.JiraEmail)
-JIRA_API_TOKEN=$($settings.JiraApiToken)
 JIRA_PROJECT_KEY=$($settings.JiraProjectKey)
 POLL_INTERVAL_SECONDS=60
 SIMILARITY_THRESHOLD=0.72
@@ -283,12 +282,17 @@ ALERT_WINDOW_HOURS=24
 APP_STATUS_PORT=3333
 "@ | Set-Content '.\.env' -Encoding UTF8
 
+$env:JIRA_BASE_URL = $settings.JiraBaseUrl.TrimEnd('/')
+$env:JIRA_EMAIL = $settings.JiraEmail
+$env:JIRA_API_TOKEN = $settings.JiraApiToken
+$env:JIRA_PROJECT_KEY = $settings.JiraProjectKey
+
 Write-Host 'Installing dependencies...'
 npm install
 if ($LASTEXITCODE -ne 0) {
     Fail 'npm install failed.'
 }
 
-Show-Info "Setup finished. The app will now start from:`n$targetFolder"
+Show-Info "Setup finished. The app will now start from:`n$targetFolder`n`nYour API token is kept in memory for this run and is not written into the cloned repo."
 Write-Host 'Starting the app...'
 npm run dev
