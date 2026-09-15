@@ -1,8 +1,10 @@
 import http from 'http';
 import { loadConfig } from './config';
 import { JiraClient } from './jiraClient';
+import { buildClusters, createAlertFromGroup } from './matcher';
 import { runWatcher } from './watcher';
 import { getRecentAlerts, getRecentIssues, getStatus, updateStatus } from './storage';
+import { hoursAgoIso, isIgnoredSummary, isOnOrAfterIso } from '../shared/utils';
 
 function escapeHtml(value: string): string {
   return value
@@ -49,6 +51,12 @@ async function main(): Promise<void> {
 
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
+      const currentClusters = buildClusters(
+        getRecentIssues(500).filter((issue) =>
+          isOnOrAfterIso(issue.updated, hoursAgoIso(config.alertWindowHours)) && !isIgnoredSummary(issue.summary)
+        ),
+        config.similarityThreshold
+      ).map((group) => createAlertFromGroup(group));
       const recentAlerts = getRecentAlerts();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
@@ -79,6 +87,20 @@ async function main(): Promise<void> {
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
               <p class="muted">Unrelated fetched tickets are hidden from this main view. Open <a href="/tickets">/tickets</a> to inspect all recent fetched tickets.</p>
+              <h2>Current matching clusters</h2>
+              ${currentClusters.length ? `
+                <ul>
+                  ${currentClusters.map((alert) => `
+                    <li>
+                      <ul class="ticket-list">
+                        ${alert.issueKeys.map((key, index) => `
+                          <li>${issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
+                        `).join('')}
+                      </ul>
+                    </li>
+                  `).join('')}
+                </ul>
+              ` : '<p class="muted">No current matching clusters.</p>'}
               <h2>Recent alerts</h2>
               ${recentAlerts.length ? `
                 <ul>
