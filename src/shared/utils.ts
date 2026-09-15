@@ -37,7 +37,9 @@ const IGNORED_SUMMARIES = new Set([
   'new advisor at external distributor partner',
   'remove access',
   'ict service hierarchy',
-  'auto pre approved'
+  'auto pre approved',
+  'ny azure ad tilgang',
+  'tilgang til'
 ]);
 
 function normalizeCharacters(value: string): string {
