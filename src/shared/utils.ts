@@ -33,6 +33,11 @@ const TOKEN_ALIASES = new Map<string, string>([
   ['virker', 'working']
 ]);
 
+const IGNORED_SUMMARIES = new Set([
+  'new advisor at external distributor partner',
+  'remove access'
+]);
+
 function normalizeCharacters(value: string): string {
   return value
     .normalize('NFKD')
@@ -87,6 +92,10 @@ export function normalizeSummary(summary: string): string {
     .replace(/[^\p{L}\p{N}\s_]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export function isIgnoredSummary(summary: string): boolean {
+  return IGNORED_SUMMARIES.has(normalizeSummary(summary));
 }
 
 export function tokenizeSummary(summary: string): string[] {
