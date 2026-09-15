@@ -50,7 +50,6 @@ async function main(): Promise<void> {
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
       const recentAlerts = getRecentAlerts();
-      const recentIssues = getRecentIssues();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
         <html>
@@ -79,14 +78,7 @@ async function main(): Promise<void> {
               <p>Next poll: <code>${current.nextPollAt ?? 'n/a'}</code></p>
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
-              <h2>Recent tickets seen</h2>
-              ${recentIssues.length ? `
-                <ul class="ticket-list">
-                  ${recentIssues.map((issue) => `
-                    <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
-                  `).join('')}
-                </ul>
-              ` : '<p class="muted">No tickets stored yet.</p>'}
+              <p class="muted">Unrelated fetched tickets are hidden from this main view. Open <a href="/tickets">/tickets</a> to inspect all recent fetched tickets.</p>
               <h2>Recent alerts</h2>
               ${recentAlerts.length ? `
                 <ul>
@@ -102,6 +94,39 @@ async function main(): Promise<void> {
                 </ul>
               ` : '<p class="muted">No alerts yet.</p>'}
               <p class="muted">Keep this window open to see live status.</p>
+            </div>
+          </body>
+        </html>
+      `);
+      return;
+    }
+
+    if (req.url === '/tickets') {
+      const recentIssues = getRecentIssues();
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`
+        <html>
+          <head>
+            <title>Recent Jira Tickets</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
+              .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); max-width: 720px; }
+              .muted { color: #6b7280; }
+              ul { padding-left: 20px; }
+              li { margin-bottom: 6px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>Recent tickets seen</h1>
+              <p><a href="/status">Back to main status page</a></p>
+              ${recentIssues.length ? `
+                <ul>
+                  ${recentIssues.map((issue) => `
+                    <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
+                  `).join('')}
+                </ul>
+              ` : '<p class="muted">No tickets stored yet.</p>'}
             </div>
           </body>
         </html>
