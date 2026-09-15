@@ -2,7 +2,7 @@ import http from 'http';
 import { loadConfig } from './config';
 import { JiraClient } from './jiraClient';
 import { runWatcher } from './watcher';
-import { getRecentAlerts, getStatus, updateStatus } from './storage';
+import { getRecentAlerts, getRecentIssues, getStatus, updateStatus } from './storage';
 
 function escapeHtml(value: string): string {
   return value
@@ -50,6 +50,7 @@ async function main(): Promise<void> {
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
       const recentAlerts = getRecentAlerts();
+      const recentIssues = getRecentIssues();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
         <html>
@@ -78,6 +79,14 @@ async function main(): Promise<void> {
               <p>Next poll: <code>${current.nextPollAt ?? 'n/a'}</code></p>
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
+              <h2>Recent tickets seen</h2>
+              ${recentIssues.length ? `
+                <ul class="ticket-list">
+                  ${recentIssues.map((issue) => `
+                    <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
+                  `).join('')}
+                </ul>
+              ` : '<p class="muted">No tickets stored yet.</p>'}
               <h2>Recent alerts</h2>
               ${recentAlerts.length ? `
                 <ul>

@@ -199,6 +199,14 @@ export function getStoredIssues(): StoredIssue[] {
   return structuredClone(getState().issues);
 }
 
+export function getRecentIssues(limit = 10): StoredIssue[] {
+  return structuredClone(
+    [...getState().issues]
+      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+      .slice(0, limit)
+  );
+}
+
 export function saveIssue(issue: StoredIssue): void {
   saveIssues([issue]);
 }
