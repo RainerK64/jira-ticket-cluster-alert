@@ -6,6 +6,8 @@ Add-Type -AssemblyName System.Drawing
 $repoUrl = 'https://github.com/RainerK64/jira-ticket-cluster-alert.git'
 $branch = 'main'
 $targetFolder = 'C:\temp\jira-ticket-cluster-alert'
+$settingsDir = Join-Path $env:LOCALAPPDATA 'JiraTicketClusterAlert'
+$settingsFile = Join-Path $settingsDir 'setup-settings.xml'
 
 function Fail {
     param([string]$Message)
@@ -24,6 +26,62 @@ function Confirm-Action {
     return [System.Windows.Forms.MessageBox]::Show($Message, 'Jira Ticket Cluster Alert Setup', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question) -eq [System.Windows.Forms.DialogResult]::Yes
 }
 
+function Get-ValueOrDefault {
+    param(
+        $Value,
+        [string]$DefaultValue = ''
+    )
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return $DefaultValue
+    }
+
+    return [string]$Value
+}
+
+function Get-SavedSetupSettings {
+    if (-not (Test-Path $settingsFile)) {
+        return $null
+    }
+
+    try {
+        $saved = Import-Clixml -Path $settingsFile
+        $token = ''
+        if ($saved.JiraApiToken) {
+            $secureToken = ConvertTo-SecureString $saved.JiraApiToken
+            $token = [System.Net.NetworkCredential]::new('', $secureToken).Password
+        }
+
+        return @{
+            JiraBaseUrl = [string]$saved.JiraBaseUrl
+            JiraEmail = [string]$saved.JiraEmail
+            JiraApiToken = $token
+            JiraProjectKey = [string]$saved.JiraProjectKey
+            Branch = [string]$saved.Branch
+            TargetFolder = [string]$saved.TargetFolder
+        }
+    } catch {
+        Show-Info 'Saved setup details could not be loaded. Please enter them again.'
+        return $null
+    }
+}
+
+function Save-SetupSettings {
+    param([hashtable]$Settings)
+
+    New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
+
+    $token = ConvertTo-SecureString $Settings.JiraApiToken -AsPlainText -Force | ConvertFrom-SecureString
+    [pscustomobject]@{
+        JiraBaseUrl = $Settings.JiraBaseUrl
+        JiraEmail = $Settings.JiraEmail
+        JiraApiToken = $token
+        JiraProjectKey = $Settings.JiraProjectKey
+        Branch = $Settings.Branch
+        TargetFolder = $Settings.TargetFolder
+    } | Export-Clixml -Path $settingsFile
+}
+
 function Stop-NodeProcessesForPath {
     param([string]$PathToMatch)
 
@@ -35,7 +93,7 @@ function Stop-NodeProcessesForPath {
     $nodeProcesses = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue
 
     foreach ($process in $nodeProcesses) {
-        $commandLine = ($process.CommandLine ?? '').ToLowerInvariant()
+        $commandLine = (Get-ValueOrDefault $process.CommandLine '').ToLowerInvariant()
         if ($commandLine -and $commandLine.Contains($normalizedPath)) {
             Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
         }
@@ -72,10 +130,12 @@ function New-Field {
 }
 
 function Show-SetupForm {
+    $savedSettings = Get-SavedSetupSettings
+
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'Jira Ticket Cluster Alert Setup'
     $form.StartPosition = 'CenterScreen'
-    $form.Size = New-Object System.Drawing.Size(500, 380)
+    $form.Size = New-Object System.Drawing.Size(500, 420)
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
@@ -89,12 +149,19 @@ function Show-SetupForm {
     $intro.Height = 35
     $form.Controls.Add($intro)
 
-    $baseUrlBox = New-Field -Form $form -LabelText 'Jira Base URL' -Top 60 -DefaultValue 'https://your-domain.atlassian.net'
-    $emailBox = New-Field -Form $form -LabelText 'Jira Email' -Top 100
-    $tokenBox = New-Field -Form $form -LabelText 'Jira API Token' -Top 140 -IsPassword $true
-    $projectKeyBox = New-Field -Form $form -LabelText 'Jira Project Key' -Top 180 -DefaultValue 'IT'
-    $branchBox = New-Field -Form $form -LabelText 'Git Branch' -Top 220 -DefaultValue $branch
-    $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 260 -DefaultValue $targetFolder
+    $baseUrlBox = New-Field -Form $form -LabelText 'Jira Base URL' -Top 60 -DefaultValue (Get-ValueOrDefault $savedSettings.JiraBaseUrl 'https://your-domain.atlassian.net')
+    $emailBox = New-Field -Form $form -LabelText 'Jira Email' -Top 100 -DefaultValue (Get-ValueOrDefault $savedSettings.JiraEmail '')
+    $tokenBox = New-Field -Form $form -LabelText 'Jira API Token' -Top 140 -DefaultValue (Get-ValueOrDefault $savedSettings.JiraApiToken '') -IsPassword $true
+    $projectKeyBox = New-Field -Form $form -LabelText 'Jira Project Key' -Top 180 -DefaultValue (Get-ValueOrDefault $savedSettings.JiraProjectKey 'IT')
+    $branchBox = New-Field -Form $form -LabelText 'Git Branch' -Top 220 -DefaultValue (Get-ValueOrDefault $savedSettings.Branch $branch)
+    $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 260 -DefaultValue (Get-ValueOrDefault $savedSettings.TargetFolder $targetFolder)
+
+    $saveButton = New-Object System.Windows.Forms.Button
+    $saveButton.Text = 'Save Credentials'
+    $saveButton.Left = 150
+    $saveButton.Top = 300
+    $saveButton.Width = 110
+    $form.Controls.Add($saveButton)
 
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = 'Start Setup'
@@ -111,6 +178,30 @@ function Show-SetupForm {
     $cancelButton.Width = 90
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $form.Controls.Add($cancelButton)
+
+    $saveButton.Add_Click({
+        $settingsToSave = @{
+            JiraBaseUrl = $baseUrlBox.Text.Trim()
+            JiraEmail = $emailBox.Text.Trim()
+            JiraApiToken = $tokenBox.Text
+            JiraProjectKey = $projectKeyBox.Text.Trim()
+            Branch = $branchBox.Text.Trim()
+            TargetFolder = $targetFolderBox.Text.Trim()
+        }
+
+        if ([string]::IsNullOrWhiteSpace($settingsToSave.JiraBaseUrl) -or
+            [string]::IsNullOrWhiteSpace($settingsToSave.JiraEmail) -or
+            [string]::IsNullOrWhiteSpace($settingsToSave.JiraApiToken) -or
+            [string]::IsNullOrWhiteSpace($settingsToSave.JiraProjectKey) -or
+            [string]::IsNullOrWhiteSpace($settingsToSave.Branch) -or
+            [string]::IsNullOrWhiteSpace($settingsToSave.TargetFolder)) {
+            Show-Info 'Fill in all setup fields before saving credentials.'
+            return
+        }
+
+        Save-SetupSettings -Settings $settingsToSave
+        Show-Info "Credentials saved for this Windows user.`nThey will be pre-filled next time."
+    })
 
     $form.AcceptButton = $okButton
     $form.CancelButton = $cancelButton
