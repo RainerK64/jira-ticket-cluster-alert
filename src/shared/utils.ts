@@ -57,6 +57,7 @@ const DEFAULT_IGNORED_SUMMARY_PREFIXES = [
   'request for',
   'ccoeorder',
   'p2 triggered',
+  'vm retirement',
   'finops',
   'create viva info about security updates',
   'p3 warn prod',
