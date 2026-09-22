@@ -41,7 +41,12 @@ const DEFAULT_IGNORED_SUMMARIES = new Set([
   'ict service hierarchy',
   'auto pre approved',
   'ny azure ad tilgang',
-  'tilgang til'
+  'tilgang til',
+  'unattached managed disks cost',
+  'unattached load balancers cost',
+  'mfa setup new phone',
+  'need help for mfa setup authenticator',
+  'third party maintenance'
 ]);
 
 const DEFAULT_IGNORED_SUMMARY_PREFIXES = [
