@@ -71,6 +71,7 @@ const DEFAULT_IGNORED_SUMMARY_PREFIXES = [
   'unattached public ip addresses cost',
   'need help for mfa setup',
   'mfa setup authenticator',
+  'need new',
   'release of mservice',
   'ict service hierarchy',
   'auto pre approved',
