@@ -152,6 +152,20 @@ export function configureCustomIgnoredSummaries(summaries: string[], prefixes: s
     .filter(Boolean);
 }
 
+export function getActiveIgnoredSummaries(): string[] {
+  return uniqueSorted([
+    ...DEFAULT_IGNORED_SUMMARIES,
+    ...customIgnoredSummaries
+  ]);
+}
+
+export function getActiveIgnoredSummaryPrefixes(): string[] {
+  return uniqueSorted([
+    ...DEFAULT_IGNORED_SUMMARY_PREFIXES,
+    ...customIgnoredSummaryPrefixes
+  ]);
+}
+
 export function isIgnoredSummary(summary: string): boolean {
   const normalizedSummary = normalizeSummary(summary);
   return DEFAULT_IGNORED_SUMMARIES.has(normalizedSummary)

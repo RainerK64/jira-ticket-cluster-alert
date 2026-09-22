@@ -4,7 +4,14 @@ import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { runWatcher } from './watcher';
 import { getRecentAlerts, getRecentIssues, getStatus, updateStatus } from './storage';
-import { configureCustomIgnoredSummaries, hoursAgoIso, isIgnoredSummary, isOnOrAfterIso } from '../shared/utils';
+import {
+  configureCustomIgnoredSummaries,
+  getActiveIgnoredSummaries,
+  getActiveIgnoredSummaryPrefixes,
+  hoursAgoIso,
+  isIgnoredSummary,
+  isOnOrAfterIso
+} from '../shared/utils';
 
 function escapeHtml(value: string): string {
   return value
@@ -34,6 +41,18 @@ function issueLink(baseUrl: string, key: string, url?: string): string {
   return `<a href="${href}" target="_blank" rel="noreferrer" aria-label="${label}">${label}</a>`;
 }
 
+function renderTextList(values: string[]): string {
+  if (!values.length) {
+    return '<p class="muted">None.</p>';
+  }
+
+  return `
+    <ul>
+      ${values.map((value) => `<li><code>${escapeHtml(value)}</code></li>`).join('')}
+    </ul>
+  `;
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   configureCustomIgnoredSummaries(config.customIgnoredSummaries, config.customIgnoredSummaryPrefixes);
@@ -52,13 +71,16 @@ async function main(): Promise<void> {
 
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
+      const alertWindowThreshold = hoursAgoIso(config.alertWindowHours);
       const currentClusters = buildClusters(
         getRecentIssues(500).filter((issue) =>
-          isOnOrAfterIso(issue.updated, hoursAgoIso(config.alertWindowHours)) && !isIgnoredSummary(issue.summary)
+          isOnOrAfterIso(issue.updated, alertWindowThreshold) && !isIgnoredSummary(issue.summary)
         ),
         config.similarityThreshold
       ).map((group) => createAlertFromGroup(group));
       const recentAlerts = getRecentAlerts();
+      const activeIgnoredSummaries = getActiveIgnoredSummaries();
+      const activeIgnoredPrefixes = getActiveIgnoredSummaryPrefixes();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
         <html>
@@ -116,6 +138,11 @@ async function main(): Promise<void> {
                   `).join('')}
                 </ul>
               ` : '<p class="muted">No alerts yet.</p>'}
+              <h2>Active exclude list</h2>
+              <p class="muted">Exact excludes</p>
+              ${renderTextList(activeIgnoredSummaries)}
+              <p class="muted">Prefix excludes</p>
+              ${renderTextList(activeIgnoredPrefixes)}
               <p class="muted">Keep this window open to see live status.</p>
             </div>
           </body>
