@@ -62,7 +62,11 @@ function loadSavedWindowsToken(): string | null {
 }
 
 function requiredApiToken(): string {
-  return process.env.JIRA_API_TOKEN || loadSavedWindowsToken() || requiredEnv('JIRA_API_TOKEN');
+  if (process.env.JIRA_API_TOKEN !== undefined) {
+    return requiredEnv('JIRA_API_TOKEN');
+  }
+
+  return loadSavedWindowsToken() || requiredEnv('JIRA_API_TOKEN');
 }
 
 function parseNumber(name: string, fallback: string): number {
