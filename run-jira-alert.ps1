@@ -39,6 +39,12 @@ function Get-ValueOrDefault {
     return [string]$Value
 }
 
+function Convert-ToEnvMultilineValue {
+    param([string]$Value)
+
+    return (Get-ValueOrDefault $Value '').Replace("`r`n", '\n').Replace("`n", '\n').Trim()
+}
+
 function Get-SavedSetupSettings {
     if (-not (Test-Path $settingsFile)) {
         return $null
@@ -59,6 +65,8 @@ function Get-SavedSetupSettings {
             JiraProjectKey = [string]$saved.JiraProjectKey
             Branch = [string]$saved.Branch
             TargetFolder = [string]$saved.TargetFolder
+            CustomIgnoredSummaries = [string]$saved.CustomIgnoredSummaries
+            CustomIgnoredSummaryPrefixes = [string]$saved.CustomIgnoredSummaryPrefixes
         }
     } catch {
         Show-Info 'Saved setup details could not be loaded. Please enter them again.'
@@ -79,6 +87,8 @@ function Save-SetupSettings {
         JiraProjectKey = $Settings.JiraProjectKey
         Branch = $Settings.Branch
         TargetFolder = $Settings.TargetFolder
+        CustomIgnoredSummaries = $Settings.CustomIgnoredSummaries
+        CustomIgnoredSummaryPrefixes = $Settings.CustomIgnoredSummaryPrefixes
     } | Export-Clixml -Path $settingsFile
 }
 
@@ -129,20 +139,50 @@ function New-Field {
     return $textbox
 }
 
+function New-MultilineField {
+    param(
+        [System.Windows.Forms.Form]$Form,
+        [string]$LabelText,
+        [int]$Top,
+        [string]$DefaultValue = '',
+        [int]$Height = 70
+    )
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = $LabelText
+    $label.Left = 20
+    $label.Top = $Top
+    $label.Width = 440
+    $Form.Controls.Add($label)
+
+    $textbox = New-Object System.Windows.Forms.TextBox
+    $textbox.Left = 20
+    $textbox.Top = $Top + 22
+    $textbox.Width = 440
+    $textbox.Height = $Height
+    $textbox.Multiline = $true
+    $textbox.AcceptsReturn = $true
+    $textbox.ScrollBars = 'Vertical'
+    $textbox.Text = $DefaultValue
+    $Form.Controls.Add($textbox)
+
+    return $textbox
+}
+
 function Show-SetupForm {
     $savedSettings = Get-SavedSetupSettings
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'Jira Ticket Cluster Alert Setup'
     $form.StartPosition = 'CenterScreen'
-    $form.Size = New-Object System.Drawing.Size(500, 420)
+    $form.Size = New-Object System.Drawing.Size(500, 640)
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
     $form.TopMost = $true
 
     $intro = New-Object System.Windows.Forms.Label
-    $intro.Text = 'Enter your Jira settings. The script will then download, install, and start the app.'
+    $intro.Text = 'Enter your Jira settings. You can also save optional custom excludes, one per line.'
     $intro.Left = 20
     $intro.Top = 15
     $intro.Width = 440
@@ -155,18 +195,20 @@ function Show-SetupForm {
     $projectKeyBox = New-Field -Form $form -LabelText 'Jira Project Key' -Top 180 -DefaultValue (Get-ValueOrDefault $savedSettings.JiraProjectKey 'IT')
     $branchBox = New-Field -Form $form -LabelText 'Git Branch' -Top 220 -DefaultValue (Get-ValueOrDefault $savedSettings.Branch $branch)
     $targetFolderBox = New-Field -Form $form -LabelText 'Install Folder' -Top 260 -DefaultValue (Get-ValueOrDefault $savedSettings.TargetFolder $targetFolder)
+    $ignoredSummariesBox = New-MultilineField -Form $form -LabelText 'Custom exact excludes (one per line)' -Top 300 -DefaultValue (Get-ValueOrDefault $savedSettings.CustomIgnoredSummaries '')
+    $ignoredPrefixesBox = New-MultilineField -Form $form -LabelText 'Custom prefix excludes (one per line)' -Top 405 -DefaultValue (Get-ValueOrDefault $savedSettings.CustomIgnoredSummaryPrefixes '')
 
     $saveButton = New-Object System.Windows.Forms.Button
-    $saveButton.Text = 'Save Credentials'
+    $saveButton.Text = 'Save Settings'
     $saveButton.Left = 150
-    $saveButton.Top = 300
+    $saveButton.Top = 520
     $saveButton.Width = 110
     $form.Controls.Add($saveButton)
 
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = 'Start Setup'
     $okButton.Left = 270
-    $okButton.Top = 300
+    $okButton.Top = 520
     $okButton.Width = 90
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $form.Controls.Add($okButton)
@@ -174,7 +216,7 @@ function Show-SetupForm {
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = 'Cancel'
     $cancelButton.Left = 370
-    $cancelButton.Top = 300
+    $cancelButton.Top = 520
     $cancelButton.Width = 90
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $form.Controls.Add($cancelButton)
@@ -187,6 +229,8 @@ function Show-SetupForm {
             JiraProjectKey = $projectKeyBox.Text.Trim()
             Branch = $branchBox.Text.Trim()
             TargetFolder = $targetFolderBox.Text.Trim()
+            CustomIgnoredSummaries = $ignoredSummariesBox.Text.Trim()
+            CustomIgnoredSummaryPrefixes = $ignoredPrefixesBox.Text.Trim()
         }
 
         if ([string]::IsNullOrWhiteSpace($settingsToSave.JiraBaseUrl) -or
@@ -200,7 +244,7 @@ function Show-SetupForm {
         }
 
         Save-SetupSettings -Settings $settingsToSave
-        Show-Info "Credentials saved for this Windows user.`nThey will be pre-filled next time."
+        Show-Info "Settings saved for this Windows user.`nThey will be pre-filled next time."
     })
 
     $form.AcceptButton = $okButton
@@ -217,6 +261,8 @@ function Show-SetupForm {
         JiraProjectKey = $projectKeyBox.Text.Trim()
         Branch = $branchBox.Text.Trim()
         TargetFolder = $targetFolderBox.Text.Trim()
+        CustomIgnoredSummaries = $ignoredSummariesBox.Text.Trim()
+        CustomIgnoredSummaryPrefixes = $ignoredPrefixesBox.Text.Trim()
     }
 }
 
@@ -280,6 +326,8 @@ POLL_INTERVAL_SECONDS=60
 SIMILARITY_THRESHOLD=0.72
 ALERT_WINDOW_HOURS=24
 APP_STATUS_PORT=3333
+CUSTOM_IGNORED_SUMMARIES=$(Convert-ToEnvMultilineValue $settings.CustomIgnoredSummaries)
+CUSTOM_IGNORED_SUMMARY_PREFIXES=$(Convert-ToEnvMultilineValue $settings.CustomIgnoredSummaryPrefixes)
 "@ | Set-Content '.\.env' -Encoding UTF8
 
 $env:JIRA_BASE_URL = $settings.JiraBaseUrl.TrimEnd('/')

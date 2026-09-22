@@ -35,7 +35,7 @@ const TOKEN_ALIASES = new Map<string, string>([
   ['virker', 'working']
 ]);
 
-const IGNORED_SUMMARIES = new Set([
+const DEFAULT_IGNORED_SUMMARIES = new Set([
   'new advisor at external distributor partner',
   'remove access',
   'ict service hierarchy',
@@ -44,7 +44,7 @@ const IGNORED_SUMMARIES = new Set([
   'tilgang til'
 ]);
 
-const IGNORED_SUMMARY_PREFIXES = [
+const DEFAULT_IGNORED_SUMMARY_PREFIXES = [
   'request for',
   'ccoeorder',
   'p2 triggered',
@@ -60,6 +60,9 @@ const IGNORED_SUMMARY_PREFIXES = [
   'ny azure ad tilgang',
   'tilgang til'
 ];
+
+let customIgnoredSummaries = new Set<string>();
+let customIgnoredSummaryPrefixes: string[] = [];
 
 function normalizeCharacters(value: string): string {
   return value
@@ -121,10 +124,24 @@ export function normalizeSummary(summary: string): string {
     .trim();
 }
 
+export function configureCustomIgnoredSummaries(summaries: string[], prefixes: string[]): void {
+  customIgnoredSummaries = new Set(
+    summaries
+      .map((summary) => normalizeSummary(summary))
+      .filter(Boolean)
+  );
+
+  customIgnoredSummaryPrefixes = prefixes
+    .map((prefix) => normalizeSummary(prefix))
+    .filter(Boolean);
+}
+
 export function isIgnoredSummary(summary: string): boolean {
   const normalizedSummary = normalizeSummary(summary);
-  return IGNORED_SUMMARIES.has(normalizedSummary)
-    || IGNORED_SUMMARY_PREFIXES.some((prefix) => normalizedSummary.startsWith(prefix));
+  return DEFAULT_IGNORED_SUMMARIES.has(normalizedSummary)
+    || customIgnoredSummaries.has(normalizedSummary)
+    || DEFAULT_IGNORED_SUMMARY_PREFIXES.some((prefix) => normalizedSummary.startsWith(prefix))
+    || customIgnoredSummaryPrefixes.some((prefix) => normalizedSummary.startsWith(prefix));
 }
 
 export function tokenizeSummary(summary: string): string[] {

@@ -4,7 +4,7 @@ import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { runWatcher } from './watcher';
 import { getRecentAlerts, getRecentIssues, getStatus, updateStatus } from './storage';
-import { hoursAgoIso, isIgnoredSummary, isOnOrAfterIso } from '../shared/utils';
+import { configureCustomIgnoredSummaries, hoursAgoIso, isIgnoredSummary, isOnOrAfterIso } from '../shared/utils';
 
 function escapeHtml(value: string): string {
   return value
@@ -36,6 +36,7 @@ function issueLink(baseUrl: string, key: string, url?: string): string {
 
 async function main(): Promise<void> {
   const config = loadConfig();
+  configureCustomIgnoredSummaries(config.customIgnoredSummaries, config.customIgnoredSummaryPrefixes);
   const initialStatus = getStatus();
   updateStatus({ running: true, startedAt: initialStatus.startedAt || new Date().toISOString() });
 

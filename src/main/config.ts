@@ -11,6 +11,8 @@ export type AppConfig = {
   similarityThreshold: number;
   alertWindowHours: number;
   appStatusPort: number;
+  customIgnoredSummaries: string[];
+  customIgnoredSummaryPrefixes: string[];
 };
 
 function requiredEnv(name: string): string {
@@ -27,6 +29,19 @@ function parseNumber(name: string, fallback: string): number {
   return value;
 }
 
+function parseStringList(name: string): string[] {
+  const rawValue = process.env[name];
+  if (!rawValue) {
+    return [];
+  }
+
+  return rawValue
+    .replace(/\\n/g, '\n')
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export function loadConfig(): AppConfig {
   return {
     jiraBaseUrl: requiredEnv('JIRA_BASE_URL').replace(/\/$/, ''),
@@ -36,6 +51,8 @@ export function loadConfig(): AppConfig {
     pollIntervalSeconds: parseNumber('POLL_INTERVAL_SECONDS', '60'),
     similarityThreshold: Math.min(0.99, Math.max(0.1, Number(process.env.SIMILARITY_THRESHOLD ?? '0.72'))),
     alertWindowHours: parseNumber('ALERT_WINDOW_HOURS', '24'),
-    appStatusPort: parseNumber('APP_STATUS_PORT', '3333')
+    appStatusPort: parseNumber('APP_STATUS_PORT', '3333'),
+    customIgnoredSummaries: parseStringList('CUSTOM_IGNORED_SUMMARIES'),
+    customIgnoredSummaryPrefixes: parseStringList('CUSTOM_IGNORED_SUMMARY_PREFIXES')
   };
 }
