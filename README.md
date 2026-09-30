@@ -32,6 +32,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
    ```
 4. Copy `.env.example` to `.env` and fill in your Jira details.
    - Optional: add custom excludes in `CUSTOM_IGNORED_SUMMARIES` or `CUSTOM_IGNORED_SUMMARY_PREFIXES`, separated with `\n`.
+   - The default `ALERT_WINDOW_HOURS` is `720` (30 days).
 5. Run the app:
    ```bash
    npm run dev
@@ -52,7 +53,7 @@ A beginner-friendly standalone desktop-style app that watches Jira tickets and a
   - `http://localhost:3333`
 - Alert popups and the status page show the matching ticket numbers.
 - On the status page, ticket numbers open the matching Jira ticket when clicked.
-- The main status page shows current matching clusters and hides unrelated fetched tickets; open `/tickets` to inspect the recent fetched-ticket list.
+- The main status page shows configured-window matching clusters on the left and matching clusters from the last 10 minutes on the right, while still hiding unrelated fetched tickets; open `/tickets` to inspect the recent fetched-ticket list.
 - The main status page also shows the active exact and prefix exclude lists so you can verify what is being ignored.
 - If port 3333 is busy, the app will try 3334 and tell you in the console.
 - When it alerts, you will get a desktop notification.

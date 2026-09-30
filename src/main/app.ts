@@ -3,7 +3,7 @@ import { loadConfig } from './config';
 import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { runWatcher } from './watcher';
-import { getRecentAlerts, getRecentIssues, getStatus, updateStatus } from './storage';
+import { getRecentAlerts, getRecentIssues, getStatus, getStoredIssues, updateStatus } from './storage';
 import {
   configureCustomIgnoredSummaries,
   getActiveIgnoredSummaries,
@@ -53,6 +53,38 @@ function renderTextList(values: string[]): string {
   `;
 }
 
+function renderClusterList(
+  issueBaseUrl: string,
+  clusters: ReturnType<typeof createAlertFromGroup>[]
+): string {
+  if (!clusters.length) {
+    return '<p class="muted">No matching clusters.</p>';
+  }
+
+  return `
+    <ul>
+      ${clusters.map((alert) => `
+        <li>
+          <ul class="ticket-list">
+            ${alert.issueKeys.map((key, index) => `
+              <li>${issueLink(issueBaseUrl, key, alert.issueUrls[index])} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
+            `).join('')}
+          </ul>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function formatHourWindowLabel(hours: number): string {
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `${days} day${days === 1 ? '' : 's'}`;
+  }
+
+  return `${hours} hour${hours === 1 ? '' : 's'}`;
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   configureCustomIgnoredSummaries(config.customIgnoredSummaries, config.customIgnoredSummaryPrefixes);
@@ -71,16 +103,22 @@ async function main(): Promise<void> {
 
     if (req.url === '/' || req.url.startsWith('/status')) {
       const current = getStatus();
+      const storedIssues = getStoredIssues();
       const alertWindowThreshold = hoursAgoIso(config.alertWindowHours);
+      const tenMinuteThreshold = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const visibleIssues = storedIssues.filter((issue) => !isIgnoredSummary(issue.summary));
       const currentClusters = buildClusters(
-        getRecentIssues(500).filter((issue) =>
-          isOnOrAfterIso(issue.updated, alertWindowThreshold) && !isIgnoredSummary(issue.summary)
-        ),
+        visibleIssues.filter((issue) => isOnOrAfterIso(issue.updated, alertWindowThreshold)),
+        config.similarityThreshold
+      ).map((group) => createAlertFromGroup(group));
+      const tenMinuteClusters = buildClusters(
+        visibleIssues.filter((issue) => isOnOrAfterIso(issue.updated, tenMinuteThreshold)),
         config.similarityThreshold
       ).map((group) => createAlertFromGroup(group));
       const recentAlerts = getRecentAlerts();
       const activeIgnoredSummaries = getActiveIgnoredSummaries();
       const activeIgnoredPrefixes = getActiveIgnoredSummaryPrefixes();
+      const mainWindowLabel = formatHourWindowLabel(config.alertWindowHours);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
         <html>
@@ -88,7 +126,7 @@ async function main(): Promise<void> {
             <title>Jira Ticket Cluster Alert</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
-              .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); max-width: 720px; }
+              .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); max-width: 1200px; }
               .running { color: #0f766e; font-weight: bold; }
               .muted { color: #6b7280; }
               code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
@@ -96,6 +134,8 @@ async function main(): Promise<void> {
               li { margin-bottom: 10px; }
               .ticket-list { margin-top: 8px; }
               .ticket-list li { margin-bottom: 6px; }
+              .cluster-columns { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+              .cluster-panel { flex: 1 1 420px; min-width: 0; }
             </style>
           </head>
           <body>
@@ -110,20 +150,16 @@ async function main(): Promise<void> {
               <p>Tickets seen: <code>${current.ticketsSeen}</code></p>
               <p>Alerts sent: <code>${current.alertsSent}</code></p>
               <p class="muted">Unrelated fetched tickets are hidden from this main view. Open <a href="/tickets">/tickets</a> to inspect all recent fetched tickets.</p>
-              <h2>Current matching clusters</h2>
-              ${currentClusters.length ? `
-                <ul>
-                  ${currentClusters.map((alert) => `
-                    <li>
-                      <ul class="ticket-list">
-                        ${alert.issueKeys.map((key, index) => `
-                          <li>${issueLink(config.jiraBaseUrl, key, alert.issueUrls[index])} — <span class="muted">${escapeHtml(alert.summaries[index] ?? '')}</span></li>
-                        `).join('')}
-                      </ul>
-                    </li>
-                  `).join('')}
-                </ul>
-              ` : '<p class="muted">No current matching clusters.</p>'}
+              <div class="cluster-columns">
+                <div class="cluster-panel">
+                  <h2>Matching clusters (last ${mainWindowLabel})</h2>
+                  ${renderClusterList(config.jiraBaseUrl, currentClusters)}
+                </div>
+                <div class="cluster-panel">
+                  <h2>Matching clusters (last 10 minutes)</h2>
+                  ${renderClusterList(config.jiraBaseUrl, tenMinuteClusters)}
+                </div>
+              </div>
               <h2>Recent alerts</h2>
               ${recentAlerts.length ? `
                 <ul>
