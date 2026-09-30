@@ -170,7 +170,7 @@ async function main(): Promise<void> {
                 <div class="cluster-panel">
                   <h2>Matching clusters (last 10 minutes)</h2>
                   ${renderClusterList(config.jiraBaseUrl, tenMinuteClusters)}
-                  <h2>Jira filter monitor</h2>
+                  <h2>possible prio</h2>
                   <p>Last refresh: <code>${specialFilterLastUpdatedAt ?? 'n/a'}</code></p>
                   <p>Tickets in filter: <code>${specialFilterIssues.length}</code></p>
                   <p>Filter status: <code>${specialFilterError ?? 'ok'}</code></p>
