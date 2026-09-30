@@ -1,4 +1,4 @@
-import notifier from 'node-notifier';
+import { execFile } from 'child_process';
 import { AlertCluster, AppStatus } from '../shared/types';
 
 function formatIssueKeys(issueKeys: string[]): string {
@@ -6,13 +6,41 @@ function formatIssueKeys(issueKeys: string[]): string {
   return issueKeys.length > 3 ? `${displayKeys} +${issueKeys.length - 3} more` : displayKeys;
 }
 
+function escapePowerShellString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function sendWindowsNotification(title: string, message: string): void {
+  const commands = ['powershell.exe', 'pwsh.exe'];
+  const script = [
+    '$shell = New-Object -ComObject WScript.Shell',
+    `$null = $shell.Popup('${escapePowerShellString(message)}', 5, '${escapePowerShellString(title)}', 64)`
+  ].join('; ');
+
+  const tryCommand = (index: number): void => {
+    if (index >= commands.length) {
+      return;
+    }
+
+    execFile(commands[index], ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true }, (error) => {
+      if (error) {
+        tryCommand(index + 1);
+      }
+    });
+  };
+
+  tryCommand(0);
+}
+
+function notify(title: string, message: string): void {
+  if (process.platform === 'win32') {
+    sendWindowsNotification(title, message);
+  }
+}
+
 export function showPopup(alert: AlertCluster, status: AppStatus): void {
   const issueKeyText = formatIssueKeys(alert.issueKeys);
-  notifier.notify({
-    title: `Jira Alert: ${issueKeyText}`,
-    message: `${alert.count} similar tickets found`,
-    sound: true
-  });
+  notify(`Jira Alert: ${issueKeyText}`, `${alert.count} similar tickets found`);
 
   console.log('\n========================================');
   console.log('JIRA TICKET CLUSTER ALERT');
