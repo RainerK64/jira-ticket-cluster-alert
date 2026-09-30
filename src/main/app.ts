@@ -148,6 +148,7 @@ async function main(): Promise<void> {
               .ticket-list li { margin-bottom: 6px; }
               .cluster-columns { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
               .cluster-panel { flex: 1 1 420px; min-width: 0; }
+              .possible-prio-title { color: #dc2626; text-decoration: underline; }
             </style>
           </head>
           <body>
@@ -170,7 +171,7 @@ async function main(): Promise<void> {
                 <div class="cluster-panel">
                   <h2>Matching clusters (last 10 minutes)</h2>
                   ${renderClusterList(config.jiraBaseUrl, tenMinuteClusters)}
-                  <h2>possible prio</h2>
+                  <h2 class="possible-prio-title">Possible Prio</h2>
                   <p>Last refresh: <code>${specialFilterLastUpdatedAt ?? 'n/a'}</code></p>
                   <p>Tickets in filter: <code>${specialFilterIssues.length}</code></p>
                   <p>Filter status: <code>${specialFilterError ?? 'ok'}</code></p>
