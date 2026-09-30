@@ -199,4 +199,8 @@ export class JiraClient {
     return (await this.fetchIssuesWithJql(projectOnlyJql))
       .filter((issue) => isOnOrAfterIso(issue.updated, sinceIso));
   }
+
+  async searchIssuesByJql(jql: string): Promise<JiraIssue[]> {
+    return this.fetchIssuesWithJql(jql);
+  }
 }

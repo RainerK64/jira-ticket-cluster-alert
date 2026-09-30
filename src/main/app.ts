@@ -4,6 +4,7 @@ import { JiraClient } from './jiraClient';
 import { buildClusters, createAlertFromGroup } from './matcher';
 import { runWatcher } from './watcher';
 import { getRecentAlerts, getRecentIssues, getStatus, getStoredIssues, updateStatus } from './storage';
+import { JiraIssue } from '../shared/types';
 import {
   configureCustomIgnoredSummaries,
   getActiveIgnoredSummaries,
@@ -85,6 +86,14 @@ function formatHourWindowLabel(hours: number): string {
   return `${hours} hour${hours === 1 ? '' : 's'}`;
 }
 
+const SPECIAL_FILTER_JQL = `project = IT AND status NOT IN (Resolved, Closed, Canceled, Cancelled)
+AND ((issuetype = "Service Request" AND priority IN (Serious, Critical)) AND labels not IN (SjekketSD)
+OR (issuetype NOT IN ("Change Info", "Change Pre approved", "Service Request with Approvals", Change)
+AND labels IN (AutoCalcPri1, AutoCalcP1, AutoCalcPri1byAgent, AutoCalcPri1byAI, AutoCalcPri1ByWords, AutoCalcPri2, AutoCalcPri2byAgent, AutoCalcPri2byAI, AutoCalcP2, AutocalcPriByWords)
+AND labels NOT IN (SjekketSD) AND reporter != "712020:97128b39-60b5-4385-8f87-9c0c8be4bdd4")
+OR "ICT Service" = "ari:cloud:cmdb::object/f304277c-a6c4-4081-9c35-2129ef260132/17768"
+OR (reporter = "qm:c7c1cec6-a8dc-40be-a0f0-4b89fef43e23:c862bbd0-ac9b-4636-8a31-a41039af4c9a" AND issuetype = Incident and not labels = sjekketSD))`;
+
 async function main(): Promise<void> {
   const config = loadConfig();
   configureCustomIgnoredSummaries(config.customIgnoredSummaries, config.customIgnoredSummaryPrefixes);
@@ -93,6 +102,9 @@ async function main(): Promise<void> {
 
   const jira = new JiraClient(config.jiraBaseUrl, config.jiraEmail, config.jiraApiToken);
   let serverStarted = false;
+  let specialFilterIssues: JiraIssue[] = [];
+  let specialFilterLastUpdatedAt: string | null = null;
+  let specialFilterError: string | null = null;
 
   const server = http.createServer((req, res) => {
     if (!req.url) {
@@ -174,6 +186,17 @@ async function main(): Promise<void> {
                   `).join('')}
                 </ul>
               ` : '<p class="muted">No alerts yet.</p>'}
+              <h2>Jira filter monitor</h2>
+              <p>Last refresh: <code>${specialFilterLastUpdatedAt ?? 'n/a'}</code></p>
+              <p>Tickets in filter: <code>${specialFilterIssues.length}</code></p>
+              <p>Filter status: <code>${specialFilterError ?? 'ok'}</code></p>
+              ${specialFilterIssues.length ? `
+                <ul>
+                  ${specialFilterIssues.map((issue) => `
+                    <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
+                  `).join('')}
+                </ul>
+              ` : '<p class="muted">No tickets currently matched by the Jira filter.</p>'}
               <h2>Active exclude list</h2>
               <p class="muted">Exact excludes</p>
               ${renderTextList(activeIgnoredSummaries)}
@@ -265,6 +288,16 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       updateStatus({ lastError: message, lastPollAt: new Date().toISOString() });
       console.error('Watcher error:', error);
+    }
+
+    try {
+      specialFilterIssues = await jira.searchIssuesByJql(SPECIAL_FILTER_JQL);
+      specialFilterLastUpdatedAt = new Date().toISOString();
+      specialFilterError = null;
+    } catch (error) {
+      specialFilterLastUpdatedAt = new Date().toISOString();
+      specialFilterError = error instanceof Error ? error.message : String(error);
+      console.error('Special filter error:', error);
     }
   };
 
