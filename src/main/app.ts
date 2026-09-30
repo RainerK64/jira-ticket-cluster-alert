@@ -170,6 +170,17 @@ async function main(): Promise<void> {
                 <div class="cluster-panel">
                   <h2>Matching clusters (last 10 minutes)</h2>
                   ${renderClusterList(config.jiraBaseUrl, tenMinuteClusters)}
+                  <h2>Jira filter monitor</h2>
+                  <p>Last refresh: <code>${specialFilterLastUpdatedAt ?? 'n/a'}</code></p>
+                  <p>Tickets in filter: <code>${specialFilterIssues.length}</code></p>
+                  <p>Filter status: <code>${specialFilterError ?? 'ok'}</code></p>
+                  ${specialFilterIssues.length ? `
+                    <ul>
+                      ${specialFilterIssues.map((issue) => `
+                        <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
+                      `).join('')}
+                    </ul>
+                  ` : '<p class="muted">No tickets currently matched by the Jira filter.</p>'}
                 </div>
               </div>
               <h2>Recent alerts</h2>
@@ -186,17 +197,6 @@ async function main(): Promise<void> {
                   `).join('')}
                 </ul>
               ` : '<p class="muted">No alerts yet.</p>'}
-              <h2>Jira filter monitor</h2>
-              <p>Last refresh: <code>${specialFilterLastUpdatedAt ?? 'n/a'}</code></p>
-              <p>Tickets in filter: <code>${specialFilterIssues.length}</code></p>
-              <p>Filter status: <code>${specialFilterError ?? 'ok'}</code></p>
-              ${specialFilterIssues.length ? `
-                <ul>
-                  ${specialFilterIssues.map((issue) => `
-                    <li>${issueLink(config.jiraBaseUrl, issue.key, issue.url)} — <span class="muted">${escapeHtml(issue.summary)}</span></li>
-                  `).join('')}
-                </ul>
-              ` : '<p class="muted">No tickets currently matched by the Jira filter.</p>'}
               <h2>Active exclude list</h2>
               <p class="muted">Exact excludes</p>
               ${renderTextList(activeIgnoredSummaries)}
