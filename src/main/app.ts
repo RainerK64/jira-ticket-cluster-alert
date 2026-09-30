@@ -136,6 +136,7 @@ async function main(): Promise<void> {
         <html>
           <head>
             <title>Jira Ticket Cluster Alert</title>
+            <meta http-equiv="refresh" content="60" />
             <style>
               body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; color: #1f2937; }
               .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); max-width: 1200px; }
